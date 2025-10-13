@@ -137,7 +137,7 @@ const Results = () => {
           <CardContent className="space-y-4">
             <div>
               <Textarea
-                placeholder="Olá {nome}, tudo bem? Seu número é {telefone}"
+                placeholder="Olá {nome}, tudo bem?"
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value.slice(0, 1000))}
                 className="min-h-[120px] resize-none"
