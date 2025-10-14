@@ -51,16 +51,22 @@ serve(async (req) => {
     const statusData = await statusResponse.json();
     console.log('Instance status:', statusData);
 
+    // Evolution API sometimes nests the connection state under `instance.state`
+    const state = statusData?.instance?.state ?? statusData?.state ?? 'unknown';
+    console.log('Derived state:', state);
+
     let newStatus = instance.status;
     let phoneNumber = instance.phone_number;
 
-    if (statusData.state === 'open') {
+    if (state === 'open') {
       newStatus = 'connected';
-      if (statusData.instance?.owner) {
+      if (statusData?.instance?.owner) {
         phoneNumber = statusData.instance.owner;
       }
-    } else if (statusData.state === 'close') {
+    } else if (state === 'close') {
       newStatus = 'disconnected';
+    } else if (state === 'connecting') {
+      newStatus = 'pending';
     }
 
     await supabaseClient
