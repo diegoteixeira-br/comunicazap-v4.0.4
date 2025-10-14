@@ -55,6 +55,22 @@ serve(async (req) => {
     const statusData = await statusResponse.json();
     console.log('Instance status:', statusData);
 
+    // Try to get full instance details including phone number
+    let fullInstanceData = null;
+    try {
+      const fetchResponse = await fetch(
+        `${evolutionApiUrl}/instance/fetchInstances?instanceName=${instance.instance_name}`,
+        {
+          headers: { 'apikey': evolutionApiKey }
+        }
+      );
+      const fetchData = await fetchResponse.json();
+      fullInstanceData = Array.isArray(fetchData) ? fetchData[0] : fetchData;
+      console.log('Full instance data:', fullInstanceData);
+    } catch (e) {
+      console.warn('Could not fetch full instance data:', e);
+    }
+
     // Evolution API sometimes nests the connection state under `instance.state`
     const state = statusData?.instance?.state ?? statusData?.state ?? 'unknown';
     console.log('Derived state:', state);
@@ -64,46 +80,26 @@ serve(async (req) => {
 
     if (state === 'open') {
       newStatus = 'connected';
-      // Try multiple possible fields for phone number
-      phoneNumber = 
+      // Try to get phone number from multiple sources
+      const ownerJid = 
+        fullInstanceData?.instance?.owner ||
+        fullInstanceData?.owner ||
         statusData?.instance?.owner ||
-        statusData?.owner ||
-        statusData?.instance?.instanceId ||
-        statusData?.instance?.profilePictureUrl?.split('@')[0] ||
-        phoneNumber;
+        statusData?.owner;
       
-      // Clean phone number (remove @s.whatsapp.net if present)
-      if (phoneNumber && typeof phoneNumber === 'string') {
-        phoneNumber = phoneNumber.split('@')[0];
+      if (ownerJid) {
+        // Clean phone number (remove @s.whatsapp.net if present)
+        phoneNumber = String(ownerJid).split('@')[0];
+        console.log('Phone number found:', phoneNumber);
+      } else {
+        console.log('Phone number not found in API response');
       }
-      
-      console.log('Phone number found:', phoneNumber);
     } else if (state === 'close') {
       newStatus = 'disconnected';
     } else if (state === 'connecting') {
       newStatus = 'pending';
     }
 
-    // Try to resolve phone number if connected but missing
-    if (newStatus === 'connected' && (!phoneNumber || String(phoneNumber).length < 8)) {
-      try {
-        const listResp = await fetch(
-          `${evolutionApiUrl}/instance/fetchInstances`,
-          { headers: { 'apikey': evolutionApiKey } }
-        );
-        const listData = await listResp.json();
-        const found = Array.isArray(listData)
-          ? listData.find((it: any) => it?.instance?.instanceName === instance.instance_name)
-          : null;
-        const ownerJid = found?.instance?.owner ?? statusData?.instance?.owner;
-        if (ownerJid) {
-          // Normalize JID like 559999999999@s.whatsapp.net -> 559999999999
-          phoneNumber = String(ownerJid).split('@')[0];
-        }
-      } catch (e) {
-        console.warn('Could not fetch owner from fetchInstances:', e);
-      }
-    }
 
     await supabaseClient
       .from('whatsapp_instances')
