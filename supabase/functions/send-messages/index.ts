@@ -34,9 +34,9 @@ serve(async (req) => {
 
     const requestSchema = z.object({
       clients: z.array(clientSchema).min(1, "At least one client required").max(1000, "Maximum 1000 clients per campaign"),
-      message: z.string().trim().max(1000, "Message too long").optional(),
-      image: z.string().optional(),
-      campaignName: z.string().trim().max(100, "Campaign name too long").optional()
+      message: z.string().trim().max(1000, "Message too long").optional().nullable(),
+      image: z.string().optional().nullable(),
+      campaignName: z.string().trim().max(100, "Campaign name too long").optional().nullable()
     });
 
     // Validate input
