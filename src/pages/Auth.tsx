@@ -12,9 +12,11 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -44,6 +46,15 @@ const Auth = () => {
         
         navigate('/dashboard');
       } else {
+        if (password !== confirmPassword) {
+          toast({
+            title: "Erro",
+            description: "As senhas não coincidem.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -138,6 +149,32 @@ const Auth = () => {
                 </button>
               </div>
             </div>
+
+            {!isLogin && (
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar Senha</Label>
+                <div className="relative">
+                  <Input
+                    id="confirmPassword"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required={!isLogin}
+                    placeholder="••••••••"
+                    minLength={6}
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showConfirmPassword ? "Ocultar senha" : "Mostrar senha"}
+                  >
+                    {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                  </button>
+                </div>
+              </div>
+            )}
 
             <Button
               type="submit"
