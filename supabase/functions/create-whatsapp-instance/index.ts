@@ -81,6 +81,7 @@ serve(async (req) => {
     // Try to capture the per-instance API key (token) from the create response
     let instanceApiKey: string | null = (
       evolutionData?.hash ||
+      evolutionData?.instance?.hash ||
       evolutionData?.instance?.apikey ||
       evolutionData?.instance?.token ||
       evolutionData?.hash?.apikey ||
@@ -89,7 +90,8 @@ serve(async (req) => {
       evolutionData?.token ||
       null
     );
-    console.log('Instance API key from create:', instanceApiKey ? 'Found' : 'Missing');
+    console.log('Instance API key from create:', instanceApiKey ? `Found: ${instanceApiKey.substring(0, 8)}...` : 'Missing');
+    console.log('Full Evolution create response:', JSON.stringify(evolutionData, null, 2));
 
     const connectResponse = await fetch(`${evolutionApiUrl}/instance/connect/${instanceName}`, {
       method: 'GET',
@@ -105,6 +107,7 @@ serve(async (req) => {
     if (!instanceApiKey) {
       const candidateFromConnect: string | null = (
         connectData?.hash ||
+        connectData?.instance?.hash ||
         connectData?.instance?.apikey ||
         connectData?.instance?.token ||
         connectData?.hash?.apikey ||
@@ -115,10 +118,18 @@ serve(async (req) => {
       );
       if (candidateFromConnect) {
         instanceApiKey = candidateFromConnect;
-        console.log('Instance API key obtained from connect response');
+        console.log('Instance API key obtained from connect response:', instanceApiKey.substring(0, 8) + '...');
       } else {
         console.warn('Instance API key still missing after connect response');
+        console.log('Full Connect response:', JSON.stringify(connectData, null, 2));
       }
+    }
+    
+    // Final validation
+    if (!instanceApiKey) {
+      console.error('CRITICAL: Could not obtain instance API key. Messages will fail!');
+    } else {
+      console.log('Instance API key confirmed for storage:', instanceApiKey.substring(0, 8) + '...');
     }
 
     const { data: instanceData, error: insertError } = await supabaseClient
