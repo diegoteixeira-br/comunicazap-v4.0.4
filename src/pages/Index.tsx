@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { MessageCircle, Upload, Send, CheckCircle2, LogIn } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MessageCircle, Upload, Send, LogIn, Clock, Shield, Zap, BarChart3, Users, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 
@@ -30,6 +30,39 @@ const Index = () => {
       icon: Send,
       title: "Envio Inteligente",
       description: "Mensagens enviadas com delay de 3 segundos entre cada contato para segurança"
+    }
+  ];
+
+  const benefits = [
+    {
+      icon: Clock,
+      title: "Economia de Tempo",
+      description: "Automatize o envio de mensagens e economize horas de trabalho manual"
+    },
+    {
+      icon: Shield,
+      title: "100% Seguro",
+      description: "Conexão criptografada e delay inteligente para proteger sua conta"
+    },
+    {
+      icon: Zap,
+      title: "Rápido e Eficiente",
+      description: "Processe centenas de contatos em minutos com nosso sistema otimizado"
+    },
+    {
+      icon: BarChart3,
+      title: "Histórico Completo",
+      description: "Acompanhe todos os envios realizados com relatórios detalhados"
+    },
+    {
+      icon: Users,
+      title: "Gestão de Contatos",
+      description: "Importe e organize seus contatos de forma simples e prática"
+    },
+    {
+      icon: CheckCircle,
+      title: "Status em Tempo Real",
+      description: "Veja o status de cada mensagem durante o processo de envio"
     }
   ];
 
@@ -76,8 +109,33 @@ const Index = () => {
           ))}
         </div>
 
+        {/* Benefits Grid */}
+        <div className="mb-16">
+          <h2 className="text-3xl font-bold text-center mb-4">Por que Escolher Nossa Plataforma?</h2>
+          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Uma solução completa para suas necessidades de comunicação em massa via WhatsApp
+          </p>
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {benefits.map((benefit, index) => (
+              <Card key={index} className="border-border/50 hover:border-primary/50 transition-all duration-300">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <benefit.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold mb-1">{benefit.title}</h3>
+                      <p className="text-sm text-muted-foreground">{benefit.description}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+
         {/* How it Works */}
-        <Card className="shadow-elevated">
+        <Card className="shadow-elevated mb-16">
           <CardContent className="pt-8">
             <h2 className="text-2xl font-bold mb-6 text-center">Como Funciona</h2>
             <div className="space-y-4">
@@ -88,7 +146,7 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Conecte seu WhatsApp</h3>
                   <p className="text-sm text-muted-foreground">
-                    Escaneie o QR Code para conectar sua conta WhatsApp de forma segura
+                    Escaneie o QR Code para conectar sua conta WhatsApp de forma segura. Seu número permanece protegido e você mantém total controle.
                   </p>
                 </div>
               </div>
@@ -99,7 +157,7 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Prepare e Envie sua Planilha</h3>
                   <p className="text-sm text-muted-foreground">
-                    Faça upload do arquivo com "Nome do Cliente" e "Telefone do Cliente" (.xlsx, .xls ou .csv)
+                    Faça upload do arquivo com "Nome do Cliente" e "Telefone do Cliente" nos formatos .xlsx, .xls ou .csv. O sistema valida automaticamente os dados.
                   </p>
                 </div>
               </div>
@@ -110,18 +168,122 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Personalize e Dispare</h3>
                   <p className="text-sm text-muted-foreground">
-                    Escreva sua mensagem, revise os contatos e inicie o envio automático
+                    Escreva sua mensagem personalizada, revise os contatos validados e inicie o envio automático com delay inteligente de 3 segundos.
                   </p>
                 </div>
               </div>
             </div>
             <div className="mt-8 text-center">
               <Button onClick={() => navigate("/auth")} size="lg">
-                Entrar / Cadastrar
+                Começar Agora
               </Button>
             </div>
           </CardContent>
         </Card>
+
+        {/* Use Cases */}
+        <div className="mb-16">
+          <h2 className="text-3xl font-bold text-center mb-4">Casos de Uso</h2>
+          <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Ideal para diversos cenários de comunicação profissional
+          </p>
+          <div className="grid md:grid-cols-2 gap-6">
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">Marketing e Promoções</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Envie ofertas especiais, lançamentos de produtos e promoções sazonais para sua base de clientes de forma personalizada e eficiente.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">Lembretes e Confirmações</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Automatize lembretes de consultas, confirmações de pedidos, avisos de pagamento e notificações importantes para seus clientes.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">Atendimento ao Cliente</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Envie atualizações de status, respostas a dúvidas frequentes e mensagens de boas-vindas para novos clientes de forma organizada.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="border-border/50">
+              <CardHeader>
+                <CardTitle className="text-lg">Eventos e Convites</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Convide clientes para eventos, webinars, workshops e promoções especiais com mensagens personalizadas e profissionais.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Security Section */}
+        <Card className="shadow-elevated bg-gradient-to-br from-primary/5 to-accent/5 border-primary/20 mb-16">
+          <CardContent className="pt-8">
+            <div className="text-center max-w-3xl mx-auto">
+              <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-4">Segurança e Confiabilidade</h2>
+              <p className="text-muted-foreground mb-6">
+                Sua segurança é nossa prioridade. Implementamos as melhores práticas para proteger sua conta e seus dados:
+              </p>
+              <div className="grid md:grid-cols-3 gap-6 text-left">
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                    Delay Inteligente
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Intervalo de 3 segundos entre mensagens para evitar bloqueios
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                    Conexão Criptografada
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Todas as comunicações são protegidas com criptografia de ponta
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                    Controle Total
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Você mantém o controle da sua conta WhatsApp a todo momento
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Final CTA */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold mb-4">Pronto para Começar?</h2>
+          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Crie sua conta gratuitamente e comece a enviar mensagens profissionais via WhatsApp hoje mesmo.
+          </p>
+          <Button onClick={() => navigate("/auth")} size="lg" variant="hero" className="text-lg px-10 py-6 h-auto">
+            <LogIn className="h-5 w-5 mr-2" />
+            Criar Conta Grátis
+          </Button>
+        </div>
       </div>
     </div>
   );
