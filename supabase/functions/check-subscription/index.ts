@@ -105,11 +105,13 @@ serve(async (req) => {
       const periodStart = subscription.current_period_start;
       
       if (!periodEnd || !periodStart) {
-        throw new Error("Subscription missing period timestamps");
+        logStep("Missing period timestamps, proceeding without dates", { periodEnd, periodStart });
       }
       
-      subscriptionEnd = new Date(periodEnd * 1000).toISOString();
-      const periodStartISO = new Date(periodStart * 1000).toISOString();
+      if (periodEnd) {
+        subscriptionEnd = new Date(periodEnd * 1000).toISOString();
+      }
+      const periodStartISO = periodStart ? new Date(periodStart * 1000).toISOString() : null;
       stripeSubscriptionId = subscription.id;
       stripePriceId = subscription.items.data[0].price.id;
       

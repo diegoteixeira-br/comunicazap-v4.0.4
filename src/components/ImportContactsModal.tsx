@@ -94,6 +94,13 @@ export const ImportContactsModal = ({ open, onOpenChange, onImport }: ImportCont
     }
   };
 
+  const removeSelected = () => {
+    if (selectedContacts.size === 0) return;
+    setContacts((prev) => prev.filter((c) => !selectedContacts.has(c.phone)));
+    setSelectedContacts(new Set());
+    toast({ title: "Contatos removidos", description: "Contatos selecionados removidos da lista" });
+  };
+
   const loadRandomContacts = () => {
     const quantity = parseInt(randomQuantity) || 50;
     const shuffled = [...contacts].sort(() => Math.random() - 0.5);
@@ -182,9 +189,14 @@ export const ImportContactsModal = ({ open, onOpenChange, onImport }: ImportCont
                     Selecionar Todos
                   </Label>
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  {selectedContacts.size} de {filteredContacts.length} selecionados
-                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-muted-foreground">
+                    {selectedContacts.size} de {filteredContacts.length} selecionados
+                  </span>
+                  <Button variant="destructive" size="sm" onClick={removeSelected} disabled={selectedContacts.size === 0}>
+                    Excluir Selecionados
+                  </Button>
+                </div>
               </div>
             </div>
 

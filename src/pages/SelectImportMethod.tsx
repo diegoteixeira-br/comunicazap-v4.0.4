@@ -26,6 +26,7 @@ const SelectImportMethod = () => {
   const [checkingSubscription, setCheckingSubscription] = useState(true);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [creatingCheckout, setCreatingCheckout] = useState(false);
+  const [pollAttempts, setPollAttempts] = useState(0);
 
   useEffect(() => {
     checkSubscription();
@@ -57,6 +58,16 @@ const SelectImportMethod = () => {
       setCheckingSubscription(false);
     }
   };
+
+  useEffect(() => {
+    if (!hasActiveSubscription && !checkingSubscription && pollAttempts < 12) {
+      const id = setTimeout(() => {
+        setPollAttempts((p) => p + 1);
+        checkSubscription();
+      }, 10000);
+      return () => clearTimeout(id);
+    }
+  }, [hasActiveSubscription, checkingSubscription, pollAttempts]);
 
   const handleCreateCheckout = async () => {
     try {
@@ -127,14 +138,6 @@ const SelectImportMethod = () => {
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
               Voltar ao Dashboard
-            </Button>
-            <Button
-              variant="outline"
-              onClick={checkSubscription}
-              disabled={checkingSubscription}
-              size="sm"
-            >
-              {checkingSubscription ? "Verificando..." : "Atualizar Status"}
             </Button>
           </div>
           <h1 className="text-4xl font-bold mb-4">Nova Campanha</h1>
