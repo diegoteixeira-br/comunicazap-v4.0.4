@@ -219,7 +219,7 @@ const Index = () => {
                     </div>
                   </div>
                   <div className="flex items-center justify-center gap-3 mb-2">
-                    <span className="text-2xl text-muted-foreground line-through">De R$ 97,90</span>
+                    <span className="text-2xl text-muted-foreground line-through">De R$ 85,57</span>
                   </div>
                   <div className="text-4xl font-bold text-primary mb-2">
                     Por R$ 59,90<span className="text-lg text-muted-foreground">/mês</span>
