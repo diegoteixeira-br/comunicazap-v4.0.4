@@ -59,7 +59,7 @@ serve(async (req) => {
       ],
       mode: "subscription",
       success_url: `${origin}/dashboard?success=true`,
-      cancel_url: `${origin}/select-import?canceled=true`,
+      cancel_url: `${origin}/dashboard?canceled=true`,
       metadata: {
         user_id: user.id,
       },

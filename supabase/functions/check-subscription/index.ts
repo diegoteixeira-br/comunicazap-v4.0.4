@@ -100,7 +100,6 @@ serve(async (req) => {
         current_period_start: subscription.current_period_start
       });
       
-      // Validar timestamps antes de processar
       const periodEnd = subscription.current_period_end;
       const periodStart = subscription.current_period_start;
       
@@ -122,7 +121,7 @@ serve(async (req) => {
         periodStart
       });
       
-      // Atualizar status no banco de dados
+      // Atualizar status e desativar trial
       const { error: upsertError } = await supabaseClient
         .from('user_subscriptions')
         .upsert({
@@ -131,6 +130,7 @@ serve(async (req) => {
           stripe_subscription_id: stripeSubscriptionId,
           stripe_price_id: stripePriceId,
           status: 'active',
+          trial_active: false,
           current_period_start: periodStartISO,
           current_period_end: subscriptionEnd,
         }, { onConflict: 'user_id' });
@@ -144,19 +144,43 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
       
+      // Verificar se tem trial ativo
+      const { data: trialData } = await supabaseClient
+        .from('user_subscriptions')
+        .select('trial_active, trial_ends_at')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      
       // Atualizar status no banco de dados
       await supabaseClient
         .from('user_subscriptions')
         .upsert({
           user_id: user.id,
           stripe_customer_id: customerId,
-          status: 'inactive',
+          status: trialData?.trial_active ? 'trial' : 'inactive',
         }, { onConflict: 'user_id' });
     }
 
+    // Buscar informações finais do trial
+    const { data: finalData } = await supabaseClient
+      .from('user_subscriptions')
+      .select('trial_active, trial_ends_at, status')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const trialActive = finalData?.trial_active && finalData?.trial_ends_at && new Date(finalData.trial_ends_at) > new Date();
+    const trialDaysLeft = trialActive 
+      ? Math.ceil((new Date(finalData.trial_ends_at).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : 0;
+
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
-      subscription_end: subscriptionEnd
+      subscription_end: subscriptionEnd,
+      trial_active: trialActive,
+      trial_ends_at: finalData?.trial_ends_at,
+      trial_days_left: trialDaysLeft,
+      has_access: hasActiveSub || trialActive,
+      status: finalData?.status || 'inactive'
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

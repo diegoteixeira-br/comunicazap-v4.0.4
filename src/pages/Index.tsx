@@ -22,9 +22,9 @@ const Index = () => {
       description: "Conecte seu WhatsApp de forma segura via QR Code e gerencie suas instâncias"
     },
     {
-      icon: Upload,
-      title: "Upload de Planilha",
-      description: "Envie planilhas .xlsx, .xls ou .csv com nome e telefone dos clientes"
+      icon: Users,
+      title: "Importação Automática",
+      description: "Importe contatos diretamente do seu WhatsApp de forma rápida e prática"
     },
     {
       icon: Send,
@@ -78,8 +78,8 @@ const Index = () => {
             Disparo em Massa via WhatsApp
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Conecte seu WhatsApp, faça upload da sua planilha de contatos e envie mensagens personalizadas automaticamente. 
-            Comece grátis com upload de planilhas ou assine o premium para importar contatos direto do WhatsApp.
+            Conecte seu WhatsApp, importe seus contatos diretamente e envie mensagens personalizadas automaticamente. 
+            <span className="text-primary font-semibold">Comece com 7 dias de teste grátis!</span>
           </p>
           <Button
             size="lg"
@@ -155,9 +155,9 @@ const Index = () => {
                   2
                 </div>
                 <div>
-                  <h3 className="font-semibold mb-1">Prepare e Envie sua Planilha</h3>
+                  <h3 className="font-semibold mb-1">Importe seus Contatos</h3>
                   <p className="text-sm text-muted-foreground">
-                    Faça upload do arquivo com "Nome do Cliente" e "Telefone do Cliente" nos formatos .xlsx, .xls ou .csv. O sistema valida automaticamente os dados.
+                    Importe contatos diretamente do seu WhatsApp conectado. Pesquise, filtre e selecione os contatos que deseja enviar mensagens.
                   </p>
                 </div>
               </div>
@@ -181,76 +181,68 @@ const Index = () => {
           </CardContent>
         </Card>
 
-        {/* Pricing Plans */}
+        {/* Pricing Section */}
         <div className="mb-16">
-          <h2 className="text-3xl font-bold text-center mb-4">Planos Disponíveis</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">Plano Único e Completo</h2>
           <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Cadastre-se gratuitamente e escolha a melhor forma de importar seus contatos
+            Importação profissional de contatos do WhatsApp com <span className="text-primary font-semibold">7 dias de teste grátis</span>
           </p>
-          <div className="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-            {/* Plano Gratuito */}
-            <Card className="border-border/50">
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <Upload className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-xl">Upload de Planilha</CardTitle>
-                </div>
-                <div className="text-2xl font-bold text-primary">Grátis</div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Envie arquivos CSV, XLSX ou XLS com seus contatos
-                </p>
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Upload de planilhas formatadas</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Envio com delay de segurança</span>
-                  </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Histórico completo de campanhas</span>
-                  </li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Plano Premium */}
-            <Card className="border-border/50 relative">
-              <div className="absolute -top-3 right-4">
-                <div className="bg-primary/10 text-primary px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1">
-                  <Crown className="h-3 w-3" />
-                  Premium
+          <div className="max-w-2xl mx-auto">
+            <Card className="border-2 border-primary/50 relative shadow-2xl bg-gradient-to-br from-primary/5 to-accent/5">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2">
+                <div className="bg-gradient-to-r from-primary to-accent text-white px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
+                  <Clock className="h-4 w-4" />
+                  7 DIAS GRÁTIS
                 </div>
               </div>
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <MessageCircle className="h-5 w-5 text-primary" />
-                  <CardTitle className="text-xl">Importação do WhatsApp</CardTitle>
+              <CardHeader className="pb-4 pt-8">
+                <div className="text-center">
+                  <div className="flex items-center justify-center gap-2 mb-3">
+                    <MessageCircle className="h-6 w-6 text-primary" />
+                    <CardTitle className="text-2xl">Importação do WhatsApp</CardTitle>
+                  </div>
+                  <div className="text-4xl font-bold text-primary mb-2">R$ 59,90<span className="text-lg text-muted-foreground">/mês</span></div>
+                  <p className="text-sm text-muted-foreground">
+                    Cancele quando quiser, sem complicações
+                  </p>
                 </div>
-                <div className="text-2xl font-bold text-primary">R$ 59,90/mês</div>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Importe contatos diretamente da sua conta conectada
-                </p>
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Sincronização automática de contatos</span>
+                <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6">
+                  <p className="text-sm text-center font-medium text-blue-900 dark:text-blue-100">
+                    🎉 Teste <span className="font-bold">GRÁTIS</span> por 7 dias sem precisar de cartão de crédito
+                  </p>
+                </div>
+                <ul className="space-y-3 mb-6">
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-sm"><strong>Importação automática</strong> de contatos do WhatsApp</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Pesquisa e filtro avançado</span>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-sm"><strong>Pesquisa e filtro avançado</strong> de contatos</span>
                   </li>
-                  <li className="flex items-start gap-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                    <span>Seleção inteligente de contatos</span>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-sm"><strong>Envio inteligente</strong> com delay de segurança</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-sm"><strong>Histórico completo</strong> de todas as campanhas</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-sm"><strong>Templates personalizáveis</strong> de mensagens</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                    <span className="text-sm"><strong>Suporte prioritário</strong> via WhatsApp</span>
                   </li>
                 </ul>
+                <Button onClick={() => navigate("/auth")} size="lg" className="w-full text-lg py-6 bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                  <Crown className="h-5 w-5 mr-2" />
+                  Começar Teste Grátis de 7 Dias
+                </Button>
               </CardContent>
             </Card>
           </div>
@@ -361,11 +353,11 @@ const Index = () => {
         <div className="text-center">
           <h2 className="text-3xl font-bold mb-4">Pronto para Começar?</h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Crie sua conta gratuitamente e comece a enviar mensagens profissionais via WhatsApp hoje mesmo.
+            Crie sua conta e teste <span className="text-primary font-bold">GRÁTIS por 7 dias</span> nossa plataforma completa de disparo via WhatsApp.
           </p>
-          <Button onClick={() => navigate("/auth")} size="lg" variant="hero" className="text-lg px-10 py-6 h-auto">
-            <LogIn className="h-5 w-5 mr-2" />
-            Criar Conta Grátis
+          <Button onClick={() => navigate("/auth")} size="lg" variant="hero" className="text-lg px-10 py-6 h-auto bg-gradient-to-r from-primary to-accent">
+            <Clock className="h-5 w-5 mr-2" />
+            Começar Teste Grátis de 7 Dias
           </Button>
         </div>
       </div>

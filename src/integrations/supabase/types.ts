@@ -146,6 +146,8 @@ export type Database = {
           stripe_customer_id: string | null
           stripe_price_id: string | null
           stripe_subscription_id: string | null
+          trial_active: boolean | null
+          trial_ends_at: string | null
           updated_at: string
           user_id: string
         }
@@ -158,6 +160,8 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
+          trial_active?: boolean | null
+          trial_ends_at?: string | null
           updated_at?: string
           user_id: string
         }
@@ -170,6 +174,8 @@ export type Database = {
           stripe_customer_id?: string | null
           stripe_price_id?: string | null
           stripe_subscription_id?: string | null
+          trial_active?: boolean | null
+          trial_ends_at?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -240,6 +246,10 @@ export type Database = {
       increment_sent_count: {
         Args: { campaign_id: string }
         Returns: undefined
+      }
+      user_has_access: {
+        Args: { check_user_id: string }
+        Returns: boolean
       }
       user_has_active_subscription: {
         Args: { check_user_id: string }

@@ -5,7 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, Upload, History, Phone, Power, Loader2, RefreshCw, Unplug, CreditCard, Crown } from 'lucide-react';
+import { MessageSquare, History, Phone, Power, Loader2, RefreshCw, Unplug, CreditCard, Crown, Clock, Zap, AlertCircle, Send, XCircle } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -19,6 +19,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+interface SubscriptionStatus {
+  subscribed: boolean;
+  trial_active: boolean;
+  trial_days_left: number;
+  has_access: boolean;
+  status: string;
+}
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
@@ -28,7 +36,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<SubscriptionStatus | null>(null);
   const [openingPortal, setOpeningPortal] = useState(false);
 
   useEffect(() => {
@@ -37,7 +45,6 @@ const Dashboard = () => {
       fetchCampaigns();
       checkSubscription();
       
-      // Subscribe to realtime changes on whatsapp_instances
       const channel = supabase
         .channel('whatsapp-instance-changes')
         .on(
@@ -154,18 +161,19 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        setHasActiveSubscription(false);
+        setSubscriptionStatus(null);
         return;
       }
 
-      const { data: subscriptionData } = await supabase
-        .from('user_subscriptions')
-        .select('*')
-        .eq('user_id', session.user.id)
-        .eq('status', 'active')
-        .maybeSingle();
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
 
-      setHasActiveSubscription(!!subscriptionData);
+      if (error) throw error;
+
+      setSubscriptionStatus(data);
     } catch (error) {
       console.error('Erro ao verificar assinatura:', error);
     }
@@ -212,6 +220,40 @@ const Dashboard = () => {
     }
   };
 
+  const handleStartCheckout = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        toast({
+          title: "Erro",
+          description: "Você precisa estar logado.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+      
+      if (data.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening checkout:', error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível abrir o checkout.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -225,197 +267,269 @@ const Dashboard = () => {
     }
   };
 
+  const handleNewCampaign = () => {
+    if (!subscriptionStatus?.has_access) {
+      toast({
+        title: "Acesso restrito",
+        description: "Assine para continuar usando a importação do WhatsApp.",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigate('/connect-whatsapp');
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10 p-4">
-      <div className="max-w-6xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Bem-vindo, {user?.email}</p>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-muted-foreground mt-1">Bem-vindo, {user?.email}</p>
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            <Power className="mr-2 h-4 w-4" />
+          <Button variant="outline" onClick={handleSignOut} className="gap-2">
+            <Power className="h-4 w-4" />
             Sair
           </Button>
         </div>
 
         {loading ? (
-          <div className="flex justify-center items-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin" />
+          <div className="flex justify-center items-center py-20">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
           </div>
         ) : (
-          <>
-            <Card className="mb-8">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Phone className="h-5 w-5" />
-                      Status WhatsApp
-                    </CardTitle>
-                    <CardDescription>
-                      {whatsappInstance?.phone_number || 'Nenhum número conectado'}
-                    </CardDescription>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={refreshInstanceStatus}
-                      disabled={refreshing}
-                    >
-                      <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-                    </Button>
-                    <Badge variant={whatsappInstance?.status === 'connected' ? 'default' : 'secondary'}>
-                      {whatsappInstance?.status === 'connected' ? '✓ Conectado' : '○ Desconectado'}
-                    </Badge>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {whatsappInstance?.status !== 'connected' ? (
-                  <Link to="/connect-whatsapp">
-                    <Button className="w-full">
-                      <Phone className="mr-2 h-4 w-4" />
-                      Conectar WhatsApp
-                    </Button>
-                  </Link>
-                ) : (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full" disabled={disconnecting}>
-                        {disconnecting ? (
-                          <>
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            Desconectando...
-                          </>
-                        ) : (
-                          <>
-                            <Unplug className="mr-2 h-4 w-4" />
-                            Desconectar WhatsApp
-                          </>
-                        )}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Isso irá desconectar seu WhatsApp e remover a instância. Você precisará escanear o QR Code novamente para reconectar.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDisconnectWhatsApp}>
-                          Desconectar
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Total de Campanhas</CardTitle>
+          <div className="space-y-8">
+            {/* Stats Cards - Topo */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="border-primary/20 hover:border-primary/40 transition-colors">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                    <MessageSquare className="h-4 w-4" />
+                    Total de Campanhas
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-4xl font-bold">{stats.total}</p>
+                  <p className="text-4xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+                    {stats.total}
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Mensagens Enviadas</CardTitle>
+              <Card className="border-green-500/20 hover:border-green-500/40 transition-colors">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                    <Send className="h-4 w-4" />
+                    Mensagens Enviadas
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-4xl font-bold text-green-600">{stats.sent}</p>
+                  <p className="text-4xl font-bold text-green-600">
+                    {stats.sent}
+                  </p>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Falhas</CardTitle>
+              <Card className="border-red-500/20 hover:border-red-500/40 transition-colors">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-muted-foreground">
+                    <XCircle className="h-4 w-4" />
+                    Falhas
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-4xl font-bold text-red-600">{stats.failed}</p>
+                  <p className="text-4xl font-bold text-red-600">
+                    {stats.failed}
+                  </p>
                 </CardContent>
               </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-              <Link to="/select-import">
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Upload className="h-5 w-5" />
+            {/* Action Cards - Meio */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Card 
+                className="cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5"
+                onClick={handleNewCampaign}
+              >
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-3 text-2xl">
+                      <div className="p-3 rounded-lg bg-primary/10">
+                        <Zap className="h-6 w-6 text-primary" />
+                      </div>
                       Nova Campanha
                     </CardTitle>
-                    <CardDescription>
-                      Escolha entre upload de planilha ou importação do WhatsApp
-                    </CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
+                  </div>
+                  <CardDescription className="text-base mt-3">
+                    Importar contatos do WhatsApp e iniciar envio
+                  </CardDescription>
+                </CardHeader>
+              </Card>
 
               <Link to="/history">
-                <Card className="cursor-pointer hover:shadow-lg transition-shadow">
+                <Card className="cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 border-2 border-accent/30 bg-gradient-to-br from-accent/5 to-primary/5 h-full">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <History className="h-5 w-5" />
-                      Histórico
-                    </CardTitle>
-                    <CardDescription>
-                      Veja todas as suas campanhas anteriores
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-3 text-2xl">
+                        <div className="p-3 rounded-lg bg-accent/10">
+                          <History className="h-6 w-6 text-accent" />
+                        </div>
+                        Histórico
+                      </CardTitle>
+                    </div>
+                    <CardDescription className="text-base mt-3">
+                      Visualizar todas as campanhas anteriores
                     </CardDescription>
                   </CardHeader>
                 </Card>
               </Link>
             </div>
 
-            {hasActiveSubscription && (
-              <Card className="border-primary/50 bg-gradient-to-br from-primary/5 to-accent/5">
+            {/* Configuration Section - Bottom */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* WhatsApp Status */}
+              <Card className="border-2">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
-                      <CardTitle className="flex items-center gap-2">
-                        <Crown className="h-5 w-5 text-yellow-500" />
-                        Assinatura Premium Ativa
+                      <CardTitle className="flex items-center gap-2 text-lg">
+                        <Phone className="h-5 w-5" />
+                        Status WhatsApp
                       </CardTitle>
-                      <CardDescription>
-                        Você tem acesso completo à importação de contatos do WhatsApp
+                      <CardDescription className="mt-1">
+                        {whatsappInstance?.phone_number || 'Nenhum número conectado'}
                       </CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={refreshInstanceStatus}
+                        disabled={refreshing}
+                      >
+                        <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                      </Button>
+                      <Badge variant={whatsappInstance?.status === 'connected' ? 'default' : 'secondary'}>
+                        {whatsappInstance?.status === 'connected' ? '✓ Conectado' : '○ Desconectado'}
+                      </Badge>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Button 
-                    variant="outline" 
-                    onClick={handleManageSubscription}
-                    disabled={openingPortal}
-                    className="w-full sm:w-auto"
-                  >
-                    {openingPortal ? (
+                  {whatsappInstance?.status !== 'connected' ? (
+                    <Link to="/connect-whatsapp">
+                      <Button className="w-full">
+                        <Phone className="mr-2 h-4 w-4" />
+                        Conectar WhatsApp
+                      </Button>
+                    </Link>
+                  ) : (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="ghost" className="w-full text-destructive hover:text-destructive" disabled={disconnecting}>
+                          {disconnecting ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Desconectando...
+                            </>
+                          ) : (
+                            <>
+                              <Unplug className="mr-2 h-4 w-4" />
+                              Desconectar
+                            </>
+                          )}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Isso irá desconectar seu WhatsApp. Você precisará escanear o QR Code novamente.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleDisconnectWhatsApp}>
+                            Desconectar
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Subscription Status */}
+              <Card className={`border-2 ${
+                subscriptionStatus?.subscribed 
+                  ? 'border-yellow-500/50 bg-gradient-to-br from-yellow-500/5 to-amber-500/5' 
+                  : subscriptionStatus?.trial_active 
+                  ? 'border-blue-500/50 bg-gradient-to-br from-blue-500/5 to-cyan-500/5'
+                  : 'border-red-500/50 bg-gradient-to-br from-red-500/5 to-orange-500/5'
+              }`}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    {subscriptionStatus?.subscribed ? (
                       <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Abrindo...
+                        <Crown className="h-5 w-5 text-yellow-500" />
+                        Assinatura Ativa
+                      </>
+                    ) : subscriptionStatus?.trial_active ? (
+                      <>
+                        <Clock className="h-5 w-5 text-blue-500" />
+                        Período de Teste Grátis
                       </>
                     ) : (
                       <>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Gerenciar Assinatura
+                        <AlertCircle className="h-5 w-5 text-red-500" />
+                        Sem Acesso
                       </>
                     )}
-                  </Button>
-                  <p className="text-xs text-muted-foreground mt-4">
-                    Aqui você pode cancelar sua assinatura, atualizar forma de pagamento ou visualizar faturas.
-                  </p>
+                  </CardTitle>
+                  <CardDescription>
+                    {subscriptionStatus?.subscribed 
+                      ? 'Você tem acesso completo à importação do WhatsApp' 
+                      : subscriptionStatus?.trial_active
+                      ? `Restam ${subscriptionStatus.trial_days_left} dia${subscriptionStatus.trial_days_left !== 1 ? 's' : ''} de teste`
+                      : 'Seu teste acabou. Assine para continuar usando.'
+                    }
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  {subscriptionStatus?.subscribed ? (
+                    <Button 
+                      variant="outline" 
+                      onClick={handleManageSubscription}
+                      disabled={openingPortal}
+                      className="w-full"
+                    >
+                      {openingPortal ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Abrindo...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Gerenciar Assinatura
+                        </>
+                      )}
+                    </Button>
+                  ) : !subscriptionStatus?.trial_active ? (
+                    <Button 
+                      onClick={handleStartCheckout}
+                      className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                    >
+                      <Crown className="mr-2 h-4 w-4" />
+                      Assinar Agora - R$ 59,90/mês
+                    </Button>
+                  ) : null}
                 </CardContent>
               </Card>
-            )}
-          </>
+            </div>
+          </div>
         )}
       </div>
     </div>

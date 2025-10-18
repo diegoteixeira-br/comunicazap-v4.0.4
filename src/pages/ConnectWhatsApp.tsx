@@ -11,7 +11,12 @@ const ConnectWhatsApp = () => {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [connected, setConnected] = useState(false);
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const navigate = useNavigate();
+
+  useEffect(() => {
+    checkAccess();
+  }, []);
 
   useEffect(() => {
     if (qrCode && !connected) {
@@ -22,6 +27,39 @@ const ConnectWhatsApp = () => {
       return () => clearInterval(interval);
     }
   }, [qrCode, connected]);
+
+  const checkAccess = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        navigate('/auth');
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke('check-subscription', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      setHasAccess(data.has_access);
+
+      if (!data.has_access) {
+        toast({
+          title: "Acesso Negado",
+          description: "Você precisa de uma assinatura ativa ou estar em período de teste.",
+          variant: "destructive",
+        });
+        setTimeout(() => navigate('/dashboard'), 2000);
+      }
+    } catch (error) {
+      console.error('Erro ao verificar acesso:', error);
+      setHasAccess(false);
+    }
+  };
 
   const createInstance = async () => {
     setLoading(true);
@@ -131,75 +169,95 @@ const ConnectWhatsApp = () => {
           Voltar ao Dashboard
         </Button>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Conectar WhatsApp</CardTitle>
-            <CardDescription>
-              {!qrCode
-                ? 'Clique no botão abaixo para gerar o QR Code'
-                : connected
-                ? 'WhatsApp conectado com sucesso!'
-                : 'Escaneie o QR Code com seu WhatsApp'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-6">
-            {!qrCode && !connected && (
-              <Button
-                onClick={createInstance}
-                disabled={loading}
-                size="lg"
-                className="w-full"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Gerando QR Code...
-                  </>
-                ) : (
-                  'Gerar QR Code'
-                )}
-              </Button>
-            )}
-
-            {qrCode && !connected && (
-              <div className="space-y-4 w-full">
-                <div className="bg-white p-4 rounded-lg shadow-lg">
-                  <img
-                    src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
-                    alt="QR Code"
-                    className="w-full max-w-sm mx-auto"
-                  />
-                </div>
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    1. Abra o WhatsApp no seu celular<br />
-                    2. Toque em Mais opções &gt; Dispositivos conectados<br />
-                    3. Toque em Conectar dispositivo<br />
-                    4. Aponte seu celular para esta tela
-                  </p>
-                  {checking && (
-                    <div className="flex items-center justify-center gap-2 text-primary">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="text-sm">Verificando conexão...</span>
-                    </div>
+        {hasAccess === null ? (
+          <Card>
+            <CardContent className="flex flex-col items-center gap-6 py-12">
+              <Loader2 className="h-12 w-12 animate-spin text-primary" />
+              <p className="text-muted-foreground">Verificando acesso...</p>
+            </CardContent>
+          </Card>
+        ) : !hasAccess ? (
+          <Card>
+            <CardContent className="flex flex-col items-center gap-6 py-12">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-destructive mb-2">Acesso Negado</h3>
+                <p className="text-muted-foreground">
+                  Você precisa de uma assinatura ativa para acessar esta funcionalidade.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card>
+            <CardHeader>
+              <CardTitle>Conectar WhatsApp</CardTitle>
+              <CardDescription>
+                {!qrCode
+                  ? 'Clique no botão abaixo para gerar o QR Code'
+                  : connected
+                  ? 'WhatsApp conectado com sucesso!'
+                  : 'Escaneie o QR Code com seu WhatsApp'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col items-center gap-6">
+              {!qrCode && !connected && (
+                <Button
+                  onClick={createInstance}
+                  disabled={loading}
+                  size="lg"
+                  className="w-full"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Gerando QR Code...
+                    </>
+                  ) : (
+                    'Gerar QR Code'
                   )}
-                </div>
-              </div>
-            )}
+                </Button>
+              )}
 
-            {connected && (
-              <div className="text-center space-y-4">
-                <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
-                <p className="text-lg font-semibold text-green-600">
-                  WhatsApp conectado com sucesso!
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Redirecionando para o dashboard...
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              {qrCode && !connected && (
+                <div className="space-y-4 w-full">
+                  <div className="bg-white p-4 rounded-lg shadow-lg">
+                    <img
+                      src={qrCode.startsWith('data:') ? qrCode : `data:image/png;base64,${qrCode}`}
+                      alt="QR Code"
+                      className="w-full max-w-sm mx-auto"
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground mb-2">
+                      1. Abra o WhatsApp no seu celular<br />
+                      2. Toque em Mais opções &gt; Dispositivos conectados<br />
+                      3. Toque em Conectar dispositivo<br />
+                      4. Aponte seu celular para esta tela
+                    </p>
+                    {checking && (
+                      <div className="flex items-center justify-center gap-2 text-primary">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="text-sm">Verificando conexão...</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {connected && (
+                <div className="text-center space-y-4">
+                  <CheckCircle className="h-16 w-16 text-green-600 mx-auto" />
+                  <p className="text-lg font-semibold text-green-600">
+                    WhatsApp conectado com sucesso!
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Redirecionando para o dashboard...
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </div>
   );
