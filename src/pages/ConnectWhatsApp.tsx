@@ -11,11 +11,10 @@ const ConnectWhatsApp = () => {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(false);
   const [connected, setConnected] = useState(false);
-  const [hasAccess, setHasAccess] = useState<boolean | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
-    checkAccess();
+    checkSession();
   }, []);
 
   useEffect(() => {
@@ -28,7 +27,7 @@ const ConnectWhatsApp = () => {
     }
   }, [qrCode, connected]);
 
-  const checkAccess = async () => {
+  const checkSession = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -36,28 +35,9 @@ const ConnectWhatsApp = () => {
         navigate('/auth');
         return;
       }
-
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      });
-
-      if (error) throw error;
-
-      setHasAccess(data.has_access);
-
-      if (!data.has_access) {
-        toast({
-          title: "Acesso Negado",
-          description: "Você precisa de uma assinatura ativa ou estar em período de teste.",
-          variant: "destructive",
-        });
-        setTimeout(() => navigate('/dashboard'), 2000);
-      }
     } catch (error) {
-      console.error('Erro ao verificar acesso:', error);
-      setHasAccess(false);
+      console.error('Erro ao verificar sessão:', error);
+      navigate('/auth');
     }
   };
 
@@ -169,26 +149,7 @@ const ConnectWhatsApp = () => {
           Voltar ao Dashboard
         </Button>
 
-        {hasAccess === null ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-6 py-12">
-              <Loader2 className="h-12 w-12 animate-spin text-primary" />
-              <p className="text-muted-foreground">Verificando acesso...</p>
-            </CardContent>
-          </Card>
-        ) : !hasAccess ? (
-          <Card>
-            <CardContent className="flex flex-col items-center gap-6 py-12">
-              <div className="text-center">
-                <h3 className="text-xl font-semibold text-destructive mb-2">Acesso Negado</h3>
-                <p className="text-muted-foreground">
-                  Você precisa de uma assinatura ativa para acessar esta funcionalidade.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Card>
+        <Card>
             <CardHeader>
               <CardTitle>Conectar WhatsApp</CardTitle>
               <CardDescription>
@@ -257,7 +218,6 @@ const ConnectWhatsApp = () => {
               )}
             </CardContent>
           </Card>
-        )}
       </div>
     </div>
   );
