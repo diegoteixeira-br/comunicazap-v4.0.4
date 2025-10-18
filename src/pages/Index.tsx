@@ -75,9 +75,9 @@ const Index = () => {
           <div className="flex h-16 items-center justify-between">
             {/* Logo e Nome */}
             <div className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity">
-              <img src={logo} alt="ComunicaZap Logo" className="h-10 w-10 sm:h-12 sm:w-12" />
+              <img src={logo} alt="Comunica Zap Logo" className="h-10 w-10 sm:h-12 sm:w-12" />
               <span className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-                ComunicaZap
+                Comunica Zap
               </span>
             </div>
 

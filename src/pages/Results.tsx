@@ -849,7 +849,7 @@ const Results = () => {
 
               <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mt-4">
                 <p className="text-sm font-semibold text-red-800 dark:text-red-200">
-                  ⚠️ Lembre-se: O ComunicaZap é uma ferramenta de comunicação, não de spam. O banimento do seu número é de sua inteira responsabilidade.
+                  ⚠️ Lembre-se: O Comunica Zap é uma ferramenta de comunicação, não de spam. O banimento do seu número é de sua inteira responsabilidade.
                 </p>
               </div>
 
