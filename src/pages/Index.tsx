@@ -266,7 +266,7 @@ const Index = () => {
                     <span className="text-sm"><strong>Suporte prioritário</strong> via WhatsApp</span>
                   </li>
                 </ul>
-                <Button onClick={() => navigate("/auth")} size="lg" className="w-full text-sm sm:text-lg py-3 sm:py-6 px-4 sm:px-6 h-auto bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                <Button onClick={() => navigate("/auth?mode=signup")} size="lg" className="w-full text-sm sm:text-lg py-3 sm:py-6 px-4 sm:px-6 h-auto bg-gradient-to-r from-primary to-accent hover:opacity-90">
                   <Crown className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   <span className="leading-tight">Começar Teste Grátis de 7 Dias</span>
                 </Button>
@@ -382,7 +382,7 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Crie sua conta e teste <span className="text-primary font-bold">GRÁTIS por 7 dias</span> nossa plataforma completa de disparo via WhatsApp.
           </p>
-          <Button onClick={() => navigate("/auth")} size="lg" variant="hero" className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-10 py-3 sm:py-6 h-auto bg-gradient-to-r from-primary to-accent">
+          <Button onClick={() => navigate("/auth?mode=signup")} size="lg" variant="hero" className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-10 py-3 sm:py-6 h-auto bg-gradient-to-r from-primary to-accent">
             <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             <span className="leading-tight">Começar Teste Grátis de 7 Dias</span>
           </Button>
