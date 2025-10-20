@@ -42,8 +42,14 @@ const Dashboard = () => {
   const [openingPortal, setOpeningPortal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
   const [userProfile, setUserProfile] = useState<{ full_name: string | null } | null>(null);
-  const [showEmail, setShowEmail] = useState(true);
-  const [showPhone, setShowPhone] = useState(true);
+  const [showEmail, setShowEmail] = useState(() => {
+    const saved = localStorage.getItem('showEmail');
+    return saved !== null ? saved === 'true' : true;
+  });
+  const [showPhone, setShowPhone] = useState(() => {
+    const saved = localStorage.getItem('showPhone');
+    return saved !== null ? saved === 'true' : true;
+  });
 
   useEffect(() => {
     if (user) {
@@ -385,6 +391,18 @@ const Dashboard = () => {
     return phone.substring(0, 3) + '***' + phone.slice(-4);
   };
 
+  const toggleShowEmail = () => {
+    const newValue = !showEmail;
+    setShowEmail(newValue);
+    localStorage.setItem('showEmail', String(newValue));
+  };
+
+  const toggleShowPhone = () => {
+    const newValue = !showPhone;
+    setShowPhone(newValue);
+    localStorage.setItem('showPhone', String(newValue));
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 p-3 sm:p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -402,7 +420,7 @@ const Dashboard = () => {
                 {showEmail ? user?.email : maskEmail(user?.email || '')}
               </p>
               <button
-                onClick={() => setShowEmail(!showEmail)}
+                onClick={toggleShowEmail}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 {showEmail ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
@@ -526,7 +544,7 @@ const Dashboard = () => {
                         </CardDescription>
                         {whatsappInstance?.phone_number && (
                           <button
-                            onClick={() => setShowPhone(!showPhone)}
+                            onClick={toggleShowPhone}
                             className="text-muted-foreground hover:text-foreground transition-colors"
                           >
                             {showPhone ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
