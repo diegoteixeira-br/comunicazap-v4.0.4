@@ -397,31 +397,16 @@ const Dashboard = () => {
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
               Bem-vindo(a), {userProfile?.full_name?.split(' ')[0] || user?.email?.split('@')[0]}
             </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
-                <p className="text-muted-foreground text-xs sm:text-sm">
-                  {showEmail ? user?.email : maskEmail(user?.email || '')}
-                </p>
-                <button
-                  onClick={() => setShowEmail(!showEmail)}
-                  className="text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showEmail ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                </button>
-              </div>
-              {whatsappInstance?.phone_number && (
-                <div className="flex items-center gap-2">
-                  <p className="text-muted-foreground text-xs sm:text-sm">
-                    {showPhone ? whatsappInstance.phone_number : maskPhone(whatsappInstance.phone_number)}
-                  </p>
-                  <button
-                    onClick={() => setShowPhone(!showPhone)}
-                    className="text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {showPhone ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
-                  </button>
-                </div>
-              )}
+            <div className="flex items-center gap-2">
+              <p className="text-muted-foreground text-xs sm:text-sm">
+                {showEmail ? user?.email : maskEmail(user?.email || '')}
+              </p>
+              <button
+                onClick={() => setShowEmail(!showEmail)}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {showEmail ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+              </button>
             </div>
           </div>
           <Button variant="outline" onClick={handleSignOut} className="gap-2 w-full sm:w-auto">
