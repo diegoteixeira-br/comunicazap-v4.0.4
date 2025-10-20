@@ -1,7 +1,19 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, Upload, Send, LogIn, Clock, Shield, Zap, BarChart3, Users, CheckCircle, Crown } from "lucide-react";
+import {
+  MessageCircle,
+  Upload,
+  Send,
+  LogIn,
+  Clock,
+  Shield,
+  Zap,
+  BarChart3,
+  Users,
+  CheckCircle,
+  Crown,
+} from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useEffect } from "react";
 import logo from "@/assets/comunicazap-logo.png";
@@ -20,51 +32,51 @@ const Index = () => {
     {
       icon: MessageCircle,
       title: "WhatsApp Conectado",
-      description: "Conecte seu WhatsApp de forma segura via QR Code e gerencie suas instâncias"
+      description: "Conecte seu WhatsApp de forma segura via QR Code e gerencie suas instâncias",
     },
     {
       icon: Users,
       title: "Importação Automática",
-      description: "Importe contatos diretamente do seu WhatsApp de forma rápida e prática"
+      description: "Importe contatos diretamente do seu WhatsApp de forma rápida e prática",
     },
     {
       icon: Send,
       title: "Envio Inteligente",
-      description: "Mensagens enviadas com delay de 3 segundos entre cada contato para segurança"
-    }
+      description: "Mensagens enviadas com delay de 3 segundos entre cada contato para segurança",
+    },
   ];
 
   const benefits = [
     {
       icon: Clock,
       title: "Economia de Tempo",
-      description: "Automatize o envio de mensagens e economize horas de trabalho manual"
+      description: "Automatize o envio de mensagens e economize horas de trabalho manual",
     },
     {
       icon: Shield,
       title: "100% Seguro",
-      description: "Conexão criptografada e delay inteligente para proteger sua conta"
+      description: "Conexão criptografada e delay inteligente para proteger sua conta",
     },
     {
       icon: Zap,
       title: "Rápido e Eficiente",
-      description: "Processe centenas de contatos em minutos com nosso sistema otimizado"
+      description: "Processe centenas de contatos em minutos com nosso sistema otimizado",
     },
     {
       icon: BarChart3,
       title: "Histórico Completo",
-      description: "Acompanhe todos os envios realizados com relatórios detalhados"
+      description: "Acompanhe todos os envios realizados com relatórios detalhados",
     },
     {
       icon: Users,
       title: "Gestão de Contatos",
-      description: "Importe e organize seus contatos de forma simples e prática"
+      description: "Importe e organize seus contatos de forma simples e prática",
     },
     {
       icon: CheckCircle,
       title: "Status em Tempo Real",
-      description: "Veja o status de cada mensagem durante o processo de envio"
-    }
+      description: "Veja o status de cada mensagem durante o processo de envio",
+    },
   ];
 
   return (
@@ -82,8 +94,8 @@ const Index = () => {
             </div>
 
             {/* Botão Login */}
-            <Button 
-              onClick={() => navigate("/auth")} 
+            <Button
+              onClick={() => navigate("/auth")}
               variant="default"
               className="gap-2 bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-all hover:scale-105"
             >
@@ -104,7 +116,7 @@ const Index = () => {
             Disparo em Massa via WhatsApp
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Conecte seu WhatsApp, importe seus contatos diretamente e envie mensagens personalizadas automaticamente. 
+            Conecte seu WhatsApp, importe seus contatos diretamente e envie mensagens personalizadas automaticamente.
             <span className="text-primary font-semibold">Comece com 7 dias de teste grátis!</span>
           </p>
         </div>
@@ -112,7 +124,10 @@ const Index = () => {
         {/* Features Grid */}
         <div className="grid md:grid-cols-3 gap-6 mb-16">
           {features.map((feature, index) => (
-            <Card key={index} className="border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-elevated">
+            <Card
+              key={index}
+              className="border-border/50 hover:border-primary/50 transition-all duration-300 hover:shadow-elevated"
+            >
               <CardContent className="pt-6">
                 <div className="flex flex-col items-center text-center">
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4">
@@ -163,7 +178,8 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Conecte seu WhatsApp</h3>
                   <p className="text-sm text-muted-foreground">
-                    Escaneie o QR Code para conectar sua conta WhatsApp de forma segura. Seu número permanece protegido e você mantém total controle.
+                    Escaneie o QR Code para conectar sua conta WhatsApp de forma segura. Seu número permanece protegido
+                    e você mantém total controle.
                   </p>
                 </div>
               </div>
@@ -174,7 +190,8 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Importe seus Contatos</h3>
                   <p className="text-sm text-muted-foreground">
-                    Importe contatos diretamente do seu WhatsApp conectado. Pesquise, filtre e selecione os contatos que deseja enviar mensagens.
+                    Importe contatos diretamente do seu WhatsApp conectado. Pesquise, filtre e selecione os contatos que
+                    deseja enviar mensagens.
                   </p>
                 </div>
               </div>
@@ -185,7 +202,8 @@ const Index = () => {
                 <div>
                   <h3 className="font-semibold mb-1">Personalize e Dispare</h3>
                   <p className="text-sm text-muted-foreground">
-                    Escreva sua mensagem personalizada, revise os contatos validados e inicie o envio automático com delay inteligente de 3 segundos.
+                    Escreva sua mensagem personalizada, revise os contatos validados e inicie o envio automático com
+                    delay inteligente de 3 segundos.
                   </p>
                 </div>
               </div>
@@ -197,19 +215,19 @@ const Index = () => {
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-center mb-4">Plano Único e Completo</h2>
           <p className="text-center text-muted-foreground mb-4 max-w-2xl mx-auto">
-            Importação profissional de contatos do WhatsApp com <span className="text-primary font-semibold">7 dias de teste grátis</span>
+            Importação profissional de contatos do WhatsApp com{" "}
+            <span className="text-primary font-semibold">7 dias de teste grátis</span>
           </p>
           <div className="max-w-2xl mx-auto mt-8">
             <div className="mb-3">
               <div className="bg-red-500 text-white px-4 py-2 text-xs sm:text-sm font-bold text-center animate-pulse rounded-t-lg">
-                ⚠️ PROMOÇÃO POR TEMPO LIMITADO - PODE ACABAR A QUALQUER MOMENTO
+                ⚠️ PROMOÇÃO POR TEMPO LIMITADO - APROVEITE O PREÇO EXCLUSIVO PARA CELEBRAR NOSSA CHEGADA.
               </div>
             </div>
             <Card className="border-2 border-primary/50 relative shadow-2xl bg-gradient-to-br from-primary/5 to-accent/5">
               <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-3">
                 <div className="bg-gradient-to-r from-primary to-accent text-white px-6 py-2 rounded-full text-sm font-bold flex items-center gap-2 shadow-lg">
-                  <Clock className="h-4 w-4" />
-                  7 DIAS GRÁTIS
+                  <Clock className="h-4 w-4" />7 DIAS GRÁTIS
                 </div>
                 <div className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-2 rounded-full text-sm font-bold shadow-lg animate-pulse">
                   30% OFF
@@ -229,9 +247,7 @@ const Index = () => {
                   <div className="text-4xl font-bold text-primary mb-2">
                     Por R$ 59,90<span className="text-lg text-muted-foreground">/mês</span>
                   </div>
-                  <p className="text-sm text-muted-foreground">
-                    Cancele quando quiser, sem complicações
-                  </p>
+                  <p className="text-sm text-muted-foreground">Cancele quando quiser, sem complicações</p>
                 </div>
               </CardHeader>
               <CardContent>
@@ -243,30 +259,46 @@ const Index = () => {
                 <ul className="space-y-3 mb-6">
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm"><strong>Importação automática</strong> de contatos do WhatsApp</span>
+                    <span className="text-sm">
+                      <strong>Importação automática</strong> de contatos do WhatsApp
+                    </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm"><strong>Pesquisa e filtro avançado</strong> de contatos</span>
+                    <span className="text-sm">
+                      <strong>Pesquisa e filtro avançado</strong> de contatos
+                    </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm"><strong>Envio inteligente</strong> com delay de segurança</span>
+                    <span className="text-sm">
+                      <strong>Envio inteligente</strong> com delay de segurança
+                    </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm"><strong>Histórico completo</strong> de todas as campanhas</span>
+                    <span className="text-sm">
+                      <strong>Histórico completo</strong> de todas as campanhas
+                    </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm"><strong>Templates personalizáveis</strong> de mensagens</span>
+                    <span className="text-sm">
+                      <strong>Templates personalizáveis</strong> de mensagens
+                    </span>
                   </li>
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm"><strong>Suporte prioritário</strong> via WhatsApp</span>
+                    <span className="text-sm">
+                      <strong>Suporte prioritário</strong> via WhatsApp
+                    </span>
                   </li>
                 </ul>
-                <Button onClick={() => navigate("/auth?mode=signup")} size="lg" className="w-full text-sm sm:text-lg py-3 sm:py-6 px-4 sm:px-6 h-auto bg-gradient-to-r from-primary to-accent hover:opacity-90">
+                <Button
+                  onClick={() => navigate("/auth?mode=signup")}
+                  size="lg"
+                  className="w-full text-sm sm:text-lg py-3 sm:py-6 px-4 sm:px-6 h-auto bg-gradient-to-r from-primary to-accent hover:opacity-90"
+                >
                   <Crown className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                   <span className="leading-tight">Começar Teste Grátis de 7 Dias</span>
                 </Button>
@@ -288,7 +320,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Envie ofertas especiais, lançamentos de produtos e promoções sazonais para sua base de clientes de forma personalizada e eficiente.
+                  Envie ofertas especiais, lançamentos de produtos e promoções sazonais para sua base de clientes de
+                  forma personalizada e eficiente.
                 </p>
               </CardContent>
             </Card>
@@ -298,7 +331,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Automatize lembretes de consultas, confirmações de pedidos, avisos de pagamento e notificações importantes para seus clientes.
+                  Automatize lembretes de consultas, confirmações de pedidos, avisos de pagamento e notificações
+                  importantes para seus clientes.
                 </p>
               </CardContent>
             </Card>
@@ -308,7 +342,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Envie atualizações de status, respostas a dúvidas frequentes e mensagens de boas-vindas para novos clientes de forma organizada.
+                  Envie atualizações de status, respostas a dúvidas frequentes e mensagens de boas-vindas para novos
+                  clientes de forma organizada.
                 </p>
               </CardContent>
             </Card>
@@ -318,7 +353,8 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">
-                  Convide clientes para eventos, webinars, workshops e promoções especiais com mensagens personalizadas e profissionais.
+                  Convide clientes para eventos, webinars, workshops e promoções especiais com mensagens personalizadas
+                  e profissionais.
                 </p>
               </CardContent>
             </Card>
@@ -332,7 +368,8 @@ const Index = () => {
               <Shield className="h-12 w-12 text-primary mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-4">Segurança e Confiabilidade</h2>
               <p className="text-muted-foreground mb-6">
-                Sua segurança é nossa prioridade. Implementamos as melhores práticas para proteger sua conta e seus dados:
+                Sua segurança é nossa prioridade. Implementamos as melhores práticas para proteger sua conta e seus
+                dados:
               </p>
               <div className="grid md:grid-cols-3 gap-6 text-left">
                 <div>
@@ -363,13 +400,14 @@ const Index = () => {
                   </p>
                 </div>
               </div>
-              
+
               <div className="mt-8 pt-6 border-t border-border/50">
                 <p className="text-xs text-muted-foreground/80 leading-relaxed">
-                  <strong className="text-muted-foreground">⚠️ Aviso Importante:</strong> Use esta ferramenta de forma responsável. 
-                  O envio excessivo de mensagens ou spam pode violar os Termos de Serviço do WhatsApp e resultar no bloqueio 
-                  permanente do seu número. Envie mensagens apenas para contatos que autorizaram o recebimento. 
-                  Recomendamos limitar os envios e respeitar as políticas de uso do WhatsApp para manter sua conta segura.
+                  <strong className="text-muted-foreground">⚠️ Aviso Importante:</strong> Use esta ferramenta de forma
+                  responsável. O envio excessivo de mensagens ou spam pode violar os Termos de Serviço do WhatsApp e
+                  resultar no bloqueio permanente do seu número. Envie mensagens apenas para contatos que autorizaram o
+                  recebimento. Recomendamos limitar os envios e respeitar as políticas de uso do WhatsApp para manter
+                  sua conta segura.
                 </p>
               </div>
             </div>
@@ -380,9 +418,15 @@ const Index = () => {
         <div className="text-center">
           <h2 className="text-3xl font-bold mb-4">Pronto para Começar?</h2>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Crie sua conta e teste <span className="text-primary font-bold">GRÁTIS por 7 dias</span> nossa plataforma completa de disparo via WhatsApp.
+            Crie sua conta e teste <span className="text-primary font-bold">GRÁTIS por 7 dias</span> nossa plataforma
+            completa de disparo via WhatsApp.
           </p>
-          <Button onClick={() => navigate("/auth?mode=signup")} size="lg" variant="hero" className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-10 py-3 sm:py-6 h-auto bg-gradient-to-r from-primary to-accent">
+          <Button
+            onClick={() => navigate("/auth?mode=signup")}
+            size="lg"
+            variant="hero"
+            className="w-full sm:w-auto text-sm sm:text-lg px-6 sm:px-10 py-3 sm:py-6 h-auto bg-gradient-to-r from-primary to-accent"
+          >
             <Clock className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
             <span className="leading-tight">Começar Teste Grátis de 7 Dias</span>
           </Button>
