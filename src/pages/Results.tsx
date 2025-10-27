@@ -367,32 +367,45 @@ const Results = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de arquivo
-    if (!file.type.startsWith('image/')) {
+    // Validar tipo de arquivo (imagens e vídeos)
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+    
+    if (!isImage && !isVideo) {
       toast.error("Arquivo inválido", {
-        description: "Por favor, selecione apenas imagens"
+        description: "Por favor, selecione apenas imagens ou vídeos"
       });
       return;
     }
 
-    // Validar tamanho (máximo 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Imagem muito grande", {
-        description: "Tamanho máximo: 5MB"
+    // Validar tamanho (máximo 20MB)
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      toast.error("Arquivo muito grande", {
+        description: `Tamanho atual: ${sizeMB}MB. Máximo: 20MB`
       });
       return;
     }
 
     setImageFile(file);
     
-    // Criar preview
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string);
-    };
-    reader.readAsDataURL(file);
+    // Criar preview apenas para imagens
+    if (isImage) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setImagePreview(null); // Vídeos não terão preview
+    }
     
-    toast.success("Imagem adicionada!");
+    const fileType = isVideo ? "Vídeo" : "Imagem";
+    const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+    toast.success(`${fileType} adicionado!`, {
+      description: `Tamanho: ${sizeMB}MB`
+    });
   };
 
   const handleRemoveImage = () => {
@@ -1123,32 +1136,44 @@ const Results = () => {
                   </CardContent>
                 </Card>
 
-                {/* Image Upload Section */}
+                {/* Media Upload Section */}
                 <div className="space-y-2">
                   <Label htmlFor="image-upload" className="flex items-center gap-2">
                     <ImagePlus className="h-4 w-4" />
-                    Adicionar Imagem (Opcional)
+                    Adicionar Imagem ou Vídeo (Opcional)
                   </Label>
-                  {!imagePreview ? (
+                  {!imagePreview && !imageFile ? (
                     <div className="relative">
                       <Input
                         id="image-upload"
                         type="file"
-                        accept="image/*"
+                        accept="image/*,video/*"
                         onChange={handleImageUpload}
                         className="cursor-pointer"
                       />
                       <p className="text-xs text-muted-foreground mt-1">
-                        Formatos aceitos: JPG, PNG, WEBP. Tamanho máximo: 5MB
+                        Imagens: JPG, PNG, WEBP | Vídeos: MP4, MOV | Máximo: 20MB
                       </p>
                     </div>
                   ) : (
                     <div className="relative inline-block">
-                      <img
-                        src={imagePreview}
-                        alt="Preview"
-                        className="max-w-full max-h-48 rounded-md border"
-                      />
+                      {imagePreview ? (
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="max-w-full max-h-48 rounded-md border"
+                        />
+                      ) : (
+                        <div className="flex items-center gap-2 p-4 bg-muted rounded-md border">
+                          <ImagePlus className="h-8 w-8 text-muted-foreground" />
+                          <div>
+                            <p className="text-sm font-medium">{imageFile?.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {((imageFile?.size || 0) / (1024 * 1024)).toFixed(2)}MB
+                            </p>
+                          </div>
+                        </div>
+                      )}
                       <Button
                         variant="destructive"
                         size="icon"

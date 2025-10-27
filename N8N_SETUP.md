@@ -1,9 +1,62 @@
 # Configuração do n8n para Integração com Evolution API
 
+## ⚠️ IMPORTANTE: Configuração de Tamanho de Upload
+
+### Aumentar Limite de Payload no Servidor
+
+Como o sistema envia imagens e vídeos em base64, que podem chegar a 20MB ou mais, é **OBRIGATÓRIO** aumentar o limite de tamanho de requisição no servidor onde o Evolution API está rodando.
+
+#### Se usar Nginx:
+
+Edite o arquivo de configuração (geralmente `/etc/nginx/nginx.conf` ou `/etc/nginx/sites-available/seu-site`):
+
+```nginx
+http {
+    # Adicione esta linha dentro do bloco http ou server
+    client_max_body_size 50M;
+}
+```
+
+Depois reinicie o Nginx:
+```bash
+sudo systemctl restart nginx
+```
+
+#### Se usar Apache:
+
+Edite o arquivo `.htaccess` ou `httpd.conf`:
+
+```apache
+# Adicione estas linhas
+LimitRequestBody 52428800
+# 52428800 bytes = 50MB
+```
+
+Depois reinicie o Apache:
+```bash
+sudo systemctl restart apache2
+```
+
+#### Se usar Docker com Evolution API:
+
+Adicione ao `docker-compose.yml`:
+
+```yaml
+services:
+  evolution:
+    environment:
+      - BODY_LIMIT=50mb
+```
+
+**Sem essa configuração, o servidor rejeitará uploads de imagens/vídeos maiores!**
+
+---
+
 ## Formato do Payload Enviado pelo Sistema
 
 O sistema envia o seguinte JSON para o webhook do n8n:
 
+**Apenas Texto:**
 ```json
 {
   "instanceName": "user-82af4c91-1760496491812",
@@ -13,32 +66,53 @@ O sistema envia o seguinte JSON para o webhook do n8n:
 }
 ```
 
-**IMPORTANTE:** O sistema agora suporta variações de mensagem! Cada contato pode receber uma variação diferente. O campo `text` já vem personalizado com o nome do cliente e a variação selecionada automaticamente pelo sistema (round-robin).
+**Com Imagem ou Vídeo:**
+```json
+{
+  "instanceName": "user-82af4c91-1760496491812",
+  "api_key": "EDA20E00-0647-4F30-B239-0D9B5C7FC193",
+  "number": "556599999999",
+  "text": "Olá João, sua mensagem aqui",
+  "image": "data:image/jpeg;base64,/9j/4AAQSkZJRg..." (base64 completo)
+}
+```
+
+**IMPORTANTE:** 
+- O sistema suporta variações de mensagem! O campo `text` já vem personalizado.
+- O sistema suporta imagens e vídeos até 20MB
+- Quando há mídia, o campo `image` contém o arquivo em base64 (formato: `data:image/jpeg;base64,...` ou `data:video/mp4;base64,...`)
+- Para envios com mídia, você precisa usar o endpoint `/message/sendMedia/` ao invés de `/message/sendText/`
 
 ## Configuração do HTTP Request no n8n
 
-### 1. Método
+### ⚠️ RECOMENDADO: Use um Nó IF para separar Texto e Mídia
+
+O ideal é criar um workflow com um nó IF que verifica se há imagem/vídeo:
+
+1. **Webhook** (recebe o payload)
+2. **IF** (verifica se `{{ $json.body.image }}` existe)
+   - Se SIM → vai para "HTTP Request - Enviar Mídia"
+   - Se NÃO → vai para "HTTP Request - Enviar Texto"
+
+### Configuração: HTTP Request - Enviar TEXTO (quando não há imagem)
+
+#### 1. Método
 - **POST**
 
-### 2. URL
+#### 2. URL
 ```
 http://evolution:8080/message/sendText/{{ $json.body.instanceName }}
 ```
 
-### 3. Authentication
+#### 3. Authentication
 - **None** (usaremos header customizado)
 
-### 4. Headers
-Adicione o seguinte header:
-
+#### 4. Headers
 | Name | Value |
 |------|-------|
 | apikey | `{{ $json.body.api_key }}` |
 
-### 5. Body (JSON)
-
-**IMPORTANTE: O formato correto para a Evolution API é:**
-
+#### 5. Body (JSON)
 ```json
 {
   "number": "{{ $json.body.number }}",
@@ -46,19 +120,67 @@ Adicione o seguinte header:
 }
 ```
 
-**OU se a Evolution API exigir o formato com textMessage:**
+#### 6. Options
+- Body Content Type: **application/json**
+
+---
+
+### Configuração: HTTP Request - Enviar MÍDIA (quando há imagem/vídeo)
+
+#### 1. Método
+- **POST**
+
+#### 2. URL
+```
+http://evolution:8080/message/sendMedia/{{ $json.body.instanceName }}
+```
+
+#### 3. Authentication
+- **None** (usaremos header customizado)
+
+#### 4. Headers
+| Name | Value |
+|------|-------|
+| apikey | `{{ $json.body.api_key }}` |
+
+#### 5. Body (JSON)
+
+**IMPORTANTE: Extrair apenas o base64 puro da imagem!**
 
 ```json
 {
   "number": "{{ $json.body.number }}",
-  "textMessage": {
-    "text": "{{ $json.body.text }}"
-  }
+  "mediatype": "image",
+  "media": "{{ $json.body.image.split(',')[1] }}",
+  "caption": "{{ $json.body.text }}"
 }
 ```
 
-### 6. Options
+**Explicação:**
+- `mediatype`: Pode ser `"image"` ou `"video"` (use `"image"` que funciona para ambos)
+- `media`: Base64 PURO (sem o prefixo `data:image/jpeg;base64,`)
+- `caption`: O texto da mensagem
+- `$json.body.image.split(',')[1]`: Remove o prefixo do base64
+
+#### 6. Options
 - Body Content Type: **application/json**
+
+---
+
+### Configuração Alternativa (SE não quiser usar IF)
+
+Se você não quiser usar o nó IF, configure apenas um HTTP Request que sempre usa `/sendMedia/`:
+
+```json
+{
+  "number": "{{ $json.body.number }}",
+  "mediatype": "{{ $json.body.image ? 'image' : undefined }}",
+  "media": "{{ $json.body.image ? $json.body.image.split(',')[1] : undefined }}",
+  "caption": "{{ $json.body.text }}"
+}
+```
+
+**ATENÇÃO:** Esta configuração pode não funcionar bem quando não há mídia. Por isso, recomendamos usar o nó IF.
 
 ## Sistema de Variações de Mensagem
 
@@ -97,6 +219,15 @@ Após configurar, teste com o seguinte payload de exemplo:
 ```
 
 ## Troubleshooting
+
+### Erro 413 "Payload Too Large" ou Erro 400 com imagens/vídeos
+
+Isso acontece quando o servidor rejeita o upload devido ao tamanho:
+
+1. **CAUSA**: O limite de payload do servidor (Nginx/Apache) está muito baixo
+2. **SOLUÇÃO**: Aumente o `client_max_body_size` (Nginx) ou `LimitRequestBody` (Apache) para pelo menos 50MB
+3. Veja as instruções completas na seção "Configuração de Tamanho de Upload" no topo deste documento
+4. **IMPORTANTE**: Reinicie o servidor após a mudança!
 
 ### Erro 400 "Bad Request - instance requires property 'text'"
 
