@@ -477,7 +477,7 @@ const Dashboard = () => {
                 className={`cursor-pointer hover:shadow-2xl hover:scale-[1.02] transition-all duration-300 border-2 ${
                   subscription.has_access 
                     ? 'border-primary/30 bg-gradient-to-br from-primary/5 to-accent/5' 
-                    : 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-orange-500/5 opacity-60'
+                    : 'border-red-500/30 bg-gradient-to-br from-red-500/5 to-orange-500/5'
                 }`}
                 onClick={() => {
                   if (subscription.has_access) {
@@ -499,6 +499,9 @@ const Dashboard = () => {
                       </div>
                       Nova Campanha
                     </CardTitle>
+                    {!subscription.has_access && (
+                      <Badge variant="destructive">Bloqueado</Badge>
+                    )}
                   </div>
                   <CardDescription className="text-base mt-3">
                     Importar contatos do WhatsApp e iniciar envio
@@ -709,7 +712,16 @@ const Dashboard = () => {
                       <Crown className="mr-2 h-4 w-4" />
                       Assinar Agora - R$ 59,90/mês
                     </Button>
-                  ) : null}
+                  ) : (
+                    <Button 
+                      onClick={handleStartCheckout}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      <Crown className="mr-2 h-4 w-4" />
+                      Assinar para remover limitações
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             </div>
