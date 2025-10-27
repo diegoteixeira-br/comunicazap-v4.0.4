@@ -143,6 +143,7 @@ serve(async (req) => {
 
     // Upload image to Supabase Storage if provided
     let mediaUrl: string | null = null;
+    let mediaType: string | null = null;
     if (image) {
       try {
         console.log('Uploading media to Supabase Storage...');
@@ -153,7 +154,7 @@ serve(async (req) => {
           throw new Error('Invalid image format');
         }
         
-        const mimeType = matches[1];
+        mediaType = matches[1];
         const base64Data = matches[2];
         
         // Convert base64 to binary
@@ -164,7 +165,7 @@ serve(async (req) => {
         }
         
         // Generate unique filename
-        const extension = mimeType.split('/')[1];
+        const extension = mediaType.split('/')[1];
         const fileName = `${user.id}/${campaign.id}.${extension}`;
         
         // Upload to Supabase Storage
@@ -172,7 +173,7 @@ serve(async (req) => {
           .storage
           .from('campaign-media')
           .upload(fileName, bytes, {
-            contentType: mimeType,
+            contentType: mediaType,
             upsert: false
           });
         
@@ -274,6 +275,7 @@ serve(async (req) => {
         // Adicionar URL da mídia se existir
         if (mediaUrl) {
           payload.mediaUrl = mediaUrl;
+          payload.mediaType = mediaType;
         }
 
         const response = await fetch(n8nWebhookUrl, {

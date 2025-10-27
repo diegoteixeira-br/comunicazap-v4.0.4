@@ -33,7 +33,8 @@ O sistema envia o seguinte JSON para o webhook do n8n:
   "api_key": "EDA20E00-0647-4F30-B239-0D9B5C7FC193",
   "number": "556599999999",
   "text": "Olá João, sua mensagem aqui",
-  "mediaUrl": "https://pxzvpnshhulrsjbeqqhn.supabase.co/storage/v1/object/public/campaign-media/..."
+  "mediaUrl": "https://pxzvpnshhulrsjbeqqhn.supabase.co/storage/v1/object/public/campaign-media/...",
+  "mediaType": "image/png"
 }
 ```
 
@@ -42,6 +43,7 @@ O sistema envia o seguinte JSON para o webhook do n8n:
 - O sistema suporta variações de mensagem! O campo `text` já vem personalizado.
 - O sistema suporta imagens e vídeos até 50MB
 - Quando há mídia, o campo `mediaUrl` contém a URL pública do arquivo no Supabase Storage
+- O campo `mediaType` contém o tipo MIME correto (ex: `image/png`, `image/jpeg`, `video/mp4`)
 - Para envios com mídia, você precisa usar o endpoint `/message/sendMedia/` ao invés de `/message/sendText/`
 
 ## Configuração do HTTP Request no n8n
@@ -112,6 +114,7 @@ http://evolution:8080/message/sendMedia/{{ $json.body.instanceName }}
 {
   "number": "{{ $json.body.number }}",
   "mediatype": "image",
+  "mimetype": "{{ $json.body.mediaType }}",
   "media": "{{ $json.body.mediaUrl }}",
   "caption": "{{ $json.body.text }}"
 }
@@ -119,9 +122,10 @@ http://evolution:8080/message/sendMedia/{{ $json.body.instanceName }}
 
 **Explicação:**
 - `mediatype`: Pode ser `"image"` ou `"video"` (use `"image"` que funciona para ambos)
+- `mimetype`: O tipo MIME correto do arquivo (ex: `image/png`, `image/jpeg`, `video/mp4`)
 - `media`: Agora recebe diretamente a **URL pública** do arquivo
 - `caption`: O texto da mensagem
-- ✅ **Vantagem:** Sem problemas de tamanho de payload!
+- ✅ **Vantagem:** Sem problemas de tamanho de payload e tipo MIME correto!
 
 #### 6. Options
 - Body Content Type: **application/json**
@@ -136,6 +140,7 @@ Se você não quiser usar o nó IF, configure apenas um HTTP Request que sempre 
 {
   "number": "{{ $json.body.number }}",
   "mediatype": "{{ $json.body.mediaUrl ? 'image' : undefined }}",
+  "mimetype": "{{ $json.body.mediaType }}",
   "media": "{{ $json.body.mediaUrl ? $json.body.mediaUrl : undefined }}",
   "caption": "{{ $json.body.text }}"
 }
