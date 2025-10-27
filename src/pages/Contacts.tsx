@@ -55,7 +55,7 @@ const Contacts = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [tagFilter, setTagFilter] = useState<string>("");
+  const [tagFilter, setTagFilter] = useState<string>("all");
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set());
   
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -126,7 +126,7 @@ const Contacts = () => {
       filtered = filtered.filter(c => c.status === statusFilter);
     }
 
-    if (tagFilter) {
+    if (tagFilter && tagFilter !== "all") {
       filtered = filtered.filter(c => c.tags?.includes(tagFilter));
     }
 
@@ -389,7 +389,7 @@ const Contacts = () => {
                   <SelectValue placeholder="Filtrar por tag" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Todas as tags</SelectItem>
+                  <SelectItem value="all">Todas as tags</SelectItem>
                   {allTags.map(tag => (
                     <SelectItem key={tag} value={tag}>{tag}</SelectItem>
                   ))}
