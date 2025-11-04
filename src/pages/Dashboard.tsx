@@ -6,9 +6,8 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MessageSquare, History, Phone, Power, Loader2, RefreshCw, Unplug, CreditCard, Crown, Clock, Zap, AlertCircle, Send, XCircle, Eye, EyeOff, Users, Bot } from 'lucide-react';
+import { MessageSquare, History, Phone, Power, Loader2, RefreshCw, Unplug, CreditCard, Crown, Clock, Zap, AlertCircle, Send, XCircle, Eye, EyeOff, Users } from 'lucide-react';
 import { ImportContactsModal } from '@/components/ImportContactsModal';
-import { AIAgentSettings } from '@/components/AIAgentSettings';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -725,45 +724,6 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
             </div>
-
-            {/* AI Agent Configuration */}
-            {user && subscription.has_access && <AIAgentSettings userId={user.id} />}
-            
-            {/* AI Agent Bloqueado */}
-            {user && !subscription.has_access && (
-              <Card className="border-2 border-red-500/50 bg-gradient-to-br from-red-500/5 to-orange-500/5">
-                <CardHeader>
-                  <div className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-red-500" />
-                    <CardTitle className="flex items-center gap-2">
-                      Agente de Atendimento com IA
-                      <Badge variant="destructive">Bloqueado</Badge>
-                    </CardTitle>
-                  </div>
-                  <CardDescription>
-                    Configure o agente automático para responder mensagens recebidas
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-muted/50 p-4 rounded-lg text-sm text-muted-foreground">
-                    <p className="mb-2">
-                      O Agente IA está disponível apenas para assinantes.
-                    </p>
-                    <p>
-                      Assine agora para ter acesso a respostas automáticas inteligentes!
-                    </p>
-                  </div>
-                  
-                  <Button 
-                    onClick={handleStartCheckout}
-                    className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90"
-                  >
-                    <Crown className="mr-2 h-4 w-4" />
-                    Assinar Agora - R$ 59,90/mês
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
           </div>
         )}
 
