@@ -206,8 +206,8 @@ const Dashboard = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
-        setSubscriptionStatus(null);
-        return;
+        console.log('Sem sessão no dashboard, usando fallback');
+        throw new Error('No session');
       }
 
       const { data, error } = await supabase.functions.invoke('check-subscription', {
@@ -220,7 +220,7 @@ const Dashboard = () => {
 
       setSubscriptionStatus(data as SubscriptionStatus);
     } catch (error) {
-      console.error('Erro ao verificar assinatura:', error);
+      console.log('Usando fallback de assinatura no dashboard');
       // Fallback seguro: consultar diretamente o status no banco
       try {
         const { data: row } = await supabase
