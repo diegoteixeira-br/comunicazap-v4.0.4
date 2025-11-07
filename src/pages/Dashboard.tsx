@@ -683,7 +683,25 @@ const Dashboard = () => {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {checkingSubscription ? (
-                    <div className="w-full h-10 bg-muted animate-pulse rounded-md" />
+                    <div className="space-y-3 py-4">
+                      <div className="flex flex-col items-center justify-center gap-4">
+                        <div className="relative">
+                          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                          <div className="absolute inset-0 h-12 w-12 rounded-full bg-primary/20 animate-pulse" />
+                        </div>
+                        <div className="text-center space-y-1">
+                          <p className="text-sm font-medium text-foreground animate-pulse">
+                            Verificando seu plano...
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Aguarde alguns instantes
+                          </p>
+                        </div>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1 overflow-hidden">
+                        <div className="h-full bg-primary/60 rounded-full animate-[slide-in-right_1.5s_ease-in-out_infinite]" />
+                      </div>
+                    </div>
                   ) : subscriptionStatus?.subscribed ? (
                     <Button 
                       variant="outline" 
