@@ -244,7 +244,8 @@ const Contacts = () => {
         .from('contacts')
         .update({
           name: editingContact.name,
-          tags: tags
+          tags: tags,
+          birthday: editingContact.birthday || null
         })
         .eq('id', editingContact.id);
 
@@ -669,6 +670,15 @@ const Contacts = () => {
                     id="edit-name"
                     value={editingContact.name || ""}
                     onChange={(e) => setEditingContact({ ...editingContact, name: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-birthday">Data de Aniversário</Label>
+                  <Input
+                    id="edit-birthday"
+                    type="date"
+                    value={editingContact.birthday || ""}
+                    onChange={(e) => setEditingContact({ ...editingContact, birthday: e.target.value })}
                   />
                 </div>
                 <div>
