@@ -278,10 +278,12 @@ serve(async (req) => {
           payload.mediaType = mediaType;
         }
 
+        console.log(`Sending message to ${client["Nome do Cliente"]}: ${personalizedMessage?.substring(0, 50)}...`);
+        
         const response = await fetch(n8nWebhookUrl, {
           method: 'POST',
           headers: { 
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json; charset=utf-8'
           },
           body: JSON.stringify(payload)
         });
@@ -353,7 +355,7 @@ serve(async (req) => {
           failed: failedCount
         }
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' } }
     );
 
   } catch (error: any) {
@@ -362,7 +364,7 @@ serve(async (req) => {
       JSON.stringify({ success: false, error: error.message }),
       { 
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' }
       }
     );
   }

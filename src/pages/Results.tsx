@@ -1134,7 +1134,7 @@ const Results = () => {
                     <TabsContent key={index} value={index.toString()} className="mt-4">
                       <div>
                         <Textarea
-                          placeholder={`Olá {nome}, tudo bem? (Variação ${index + 1})`}
+                          placeholder={`Olá {nome}, tudo bem? 😊 (Variação ${index + 1})`}
                           value={messageVariations[index]}
                           onChange={(e) => {
                             const newVariations = [...messageVariations];
@@ -1142,6 +1142,8 @@ const Results = () => {
                             setMessageVariations(newVariations);
                           }}
                           className="min-h-[120px] resize-none"
+                          spellCheck="false"
+                          lang="pt-BR"
                         />
                         <div className="flex justify-between items-center mt-1">
                           <span className="text-xs text-muted-foreground">
