@@ -115,34 +115,97 @@ serve(async (req) => {
         .maybeSingle();
       
       if (!existingUser) {
-        // Novo usuário - criar trial de 7 dias
-        const trialEndsAt = new Date();
-        trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+        // Buscar data de criação do perfil para verificar elegibilidade ao trial
+        const { data: profile, error: profileError } = await supabaseClient
+          .from('profiles')
+          .select('created_at')
+          .eq('id', user.id)
+          .maybeSingle();
         
-        logStep("Creating new trial for user", { trialEndsAt: trialEndsAt.toISOString() });
+        if (profileError) {
+          logStep("Error fetching profile", { error: profileError });
+          throw profileError;
+        }
         
-        await supabaseClient
-          .from('user_subscriptions')
-          .insert({
-            user_id: user.id,
-            status: 'trial',
+        if (!profile) {
+          logStep("Profile not found for user");
+          return new Response(JSON.stringify({ 
+            error: "Profile not found",
+            has_access: false,
+            subscribed: false,
+            trial_active: false,
+            trial_days_left: 0,
+            status: 'inactive'
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 404,
+          });
+        }
+        
+        const profileCreatedAt = new Date(profile.created_at);
+        const now = new Date();
+        const daysSinceCreation = Math.floor((now.getTime() - profileCreatedAt.getTime()) / (1000 * 60 * 60 * 24));
+        
+        logStep("Profile created", { 
+          profileCreatedAt: profileCreatedAt.toISOString(), 
+          daysSinceCreation 
+        });
+        
+        if (daysSinceCreation >= 7) {
+          // Conta antiga - criar registro INATIVO (trial expirado)
+          logStep("Old account detected, creating inactive subscription");
+          
+          await supabaseClient
+            .from('user_subscriptions')
+            .insert({
+              user_id: user.id,
+              status: 'inactive',
+              trial_active: false,
+            });
+          
+          return new Response(JSON.stringify({ 
+            subscribed: false,
+            trial_active: false,
+            trial_ends_at: null,
+            trial_days_left: 0,
+            has_access: false,
+            status: 'inactive'
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          });
+        } else {
+          // Conta nova - criar trial com dias restantes corretos baseado na data de criação
+          const daysLeft = 7 - daysSinceCreation;
+          const trialEndsAt = new Date(profileCreatedAt);
+          trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+          
+          logStep("New account, creating trial", { 
+            daysLeft, 
+            trialEndsAt: trialEndsAt.toISOString() 
+          });
+          
+          await supabaseClient
+            .from('user_subscriptions')
+            .insert({
+              user_id: user.id,
+              status: 'trial',
+              trial_active: true,
+              trial_ends_at: trialEndsAt.toISOString(),
+            });
+          
+          return new Response(JSON.stringify({ 
+            subscribed: false,
             trial_active: true,
             trial_ends_at: trialEndsAt.toISOString(),
+            trial_days_left: daysLeft,
+            has_access: true,
+            status: 'trial'
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
           });
-        
-        const trialDaysLeft = 7;
-        
-        return new Response(JSON.stringify({ 
-          subscribed: false,
-          trial_active: true,
-          trial_ends_at: trialEndsAt.toISOString(),
-          trial_days_left: trialDaysLeft,
-          has_access: true,
-          status: 'trial'
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        });
+        }
       } else {
         // Usuário existente - verificar se trial ainda é válido
         const trialActive = existingUser.trial_active && 
