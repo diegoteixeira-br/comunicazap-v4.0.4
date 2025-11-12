@@ -12,26 +12,33 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // Use the service role to reliably validate the user token in all environments
   const supabaseClient = createClient(
     Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_ANON_KEY") ?? ""
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+    { auth: { persistSession: false } }
   );
 
   try {
     console.log("[CREATE-CHECKOUT] Function started");
-    
-    const authHeader = req.headers.get("Authorization")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      throw new Error("No authorization header provided");
+    }
     const token = authHeader.replace("Bearer ", "");
-    const { data } = await supabaseClient.auth.getUser(token);
-    const user = data.user;
-    
+
+    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    const user = userData.user;
+
     if (!user?.email) {
       throw new Error("User not authenticated or email not available");
     }
-    
+
     console.log("[CREATE-CHECKOUT] User authenticated:", user.email);
 
-    // Ler o price_id do body da requisição com fallback seguro
+    // Read price_id from body with safe fallback
     const DEFAULT_PRICE_ID = 'price_1SRzrKPFVcRfSdEa6X7WSrTV';
     let price_id: string | undefined;
     try {
@@ -53,14 +60,12 @@ serve(async (req) => {
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
     console.log(`[CREATE-CHECKOUT] Using Stripe key suffix: ${stripeKey ? stripeKey.slice(-6) : 'MISSING'}`);
-    const stripe = new Stripe(stripeKey, { 
-      apiVersion: "2025-08-27.basil" 
-    });
-    
-    // Verificar se o cliente já existe no Stripe
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
+    // Find or create customer by email
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    let customerId;
-    
+    let customerId: string | undefined;
+
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
       console.log("[CREATE-CHECKOUT] Found existing customer:", customerId);
@@ -69,24 +74,18 @@ serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "https://pxzvpnshhulrsjbeqqhn.supabase.co";
-    
     console.log("[CREATE-CHECKOUT] Creating checkout session with price:", price_id);
-    
+
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
-        {
-          price: price_id,
-          quantity: 1,
-        },
+        { price: price_id, quantity: 1 },
       ],
       mode: "subscription",
       success_url: `${origin}/?success=true`,
       cancel_url: `${origin}/?canceled=true`,
-      metadata: {
-        user_id: user.id,
-      },
+      metadata: { user_id: user.id },
       allow_promotion_codes: true,
       billing_address_collection: 'required',
     });
