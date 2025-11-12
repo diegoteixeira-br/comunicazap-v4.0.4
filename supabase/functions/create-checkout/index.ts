@@ -31,15 +31,25 @@ serve(async (req) => {
     
     console.log("[CREATE-CHECKOUT] User authenticated:", user.email);
 
-    // Ler o price_id do body da requisição
-    const body = await req.json();
-    const { price_id } = body;
-    
-    if (!price_id || !price_id.startsWith('price_')) {
-      throw new Error("price_id inválido ou ausente no body da requisição");
+    // Ler o price_id do body da requisição com fallback seguro
+    const DEFAULT_PRICE_ID = 'price_1SRzrKPFVcRfSdEa6X7WSrTV';
+    let price_id: string | undefined;
+    try {
+      const raw = await req.text();
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        price_id = parsed?.price_id;
+      }
+    } catch (e) {
+      console.log('[CREATE-CHECKOUT] Body parse failed, using fallback. Error:', e);
     }
-    
-    console.log("[CREATE-CHECKOUT] Using price_id from request:", price_id);
+
+    if (!price_id || !String(price_id).startsWith('price_')) {
+      price_id = DEFAULT_PRICE_ID;
+      console.log('[CREATE-CHECKOUT] price_id ausente/inválido. Usando default:', price_id);
+    }
+
+    console.log('[CREATE-CHECKOUT] Using price_id:', price_id);
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
     console.log(`[CREATE-CHECKOUT] Using Stripe key suffix: ${stripeKey ? stripeKey.slice(-6) : 'MISSING'}`);
