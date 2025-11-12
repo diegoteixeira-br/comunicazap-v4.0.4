@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ArrowLeft, Calendar, CreditCard, CheckCircle, AlertCircle, Crown, ExternalLink, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { STRIPE_PRODUCTS } from "@/config/stripeProducts";
 
 const Subscription = () => {
   const navigate = useNavigate();
@@ -77,6 +78,9 @@ const Subscription = () => {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: {
+          price_id: STRIPE_PRODUCTS.premium.price_id
+        }
       });
 
       if (error) throw error;

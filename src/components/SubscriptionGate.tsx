@@ -6,6 +6,7 @@ import { Crown, Loader2, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/sessionClient';
 import { toast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
+import { STRIPE_PRODUCTS } from '@/config/stripeProducts';
 
 interface SubscriptionGateProps {
   children: React.ReactNode;
@@ -50,6 +51,9 @@ export const SubscriptionGate = ({ children }: SubscriptionGateProps) => {
         headers: {
           Authorization: `Bearer ${session.access_token}`,
         },
+        body: {
+          price_id: STRIPE_PRODUCTS.premium.price_id
+        }
       });
 
       if (error) throw error;

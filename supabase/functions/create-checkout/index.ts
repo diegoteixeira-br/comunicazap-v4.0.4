@@ -31,6 +31,16 @@ serve(async (req) => {
     
     console.log("[CREATE-CHECKOUT] User authenticated:", user.email);
 
+    // Ler o price_id do body da requisição
+    const body = await req.json();
+    const { price_id } = body;
+    
+    if (!price_id || !price_id.startsWith('price_')) {
+      throw new Error("price_id inválido ou ausente no body da requisição");
+    }
+    
+    console.log("[CREATE-CHECKOUT] Using price_id from request:", price_id);
+
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY") || "";
     console.log(`[CREATE-CHECKOUT] Using Stripe key suffix: ${stripeKey ? stripeKey.slice(-6) : 'MISSING'}`);
     const stripe = new Stripe(stripeKey, { 
@@ -50,15 +60,14 @@ serve(async (req) => {
 
     const origin = req.headers.get("origin") || "https://pxzvpnshhulrsjbeqqhn.supabase.co";
     
-    const priceId = "price_1SRzrKPFVcRfSdEa6X7WSrTV";
-    console.log("[CREATE-CHECKOUT] Creating checkout session with price:", priceId);
+    console.log("[CREATE-CHECKOUT] Creating checkout session with price:", price_id);
     
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : user.email,
       line_items: [
         {
-          price: priceId,
+          price: price_id,
           quantity: 1,
         },
       ],
