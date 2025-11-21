@@ -10,6 +10,7 @@ import { MessageSquare, History, Phone, Power, Loader2, RefreshCw, Unplug, Credi
 import { ImportContactsModal } from '@/components/ImportContactsModal';
 import { UsageStats } from '@/components/UsageStats';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { SupportChat } from '@/components/SupportChat';
 import { toast } from '@/hooks/use-toast';
 import {
   AlertDialog,
@@ -780,6 +781,9 @@ const Dashboard = () => {
           onOpenChange={setShowImportModal}
           onImport={handleImportContacts}
         />
+
+        {/* Chat de Suporte Flutuante */}
+        <SupportChat />
       </div>
     </div>
   );
