@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Loader2, Users, Search } from 'lucide-react';
+import { Loader2, Users, Search, Smartphone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 interface Group {
   id: string;
@@ -23,6 +25,8 @@ export const GroupSelector = ({ selectedGroups, onGroupsChange }: GroupSelectorP
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [noInstance, setNoInstance] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchGroups();
@@ -46,7 +50,22 @@ export const GroupSelector = ({ selectedGroups, onGroupsChange }: GroupSelectorP
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error invoking function:', error);
+        throw new Error(error.message);
+      }
+
+      // Verificar se há erro na resposta
+      if (data.error) {
+        // Se o erro é de WhatsApp não conectado, marcar flag
+        if (data.error.includes('não conectado')) {
+          setNoInstance(true);
+        }
+        toast.error('Erro ao buscar grupos', {
+          description: data.error
+        });
+        return;
+      }
 
       if (data.groups && data.groups.length > 0) {
         setGroups(data.groups);
@@ -59,7 +78,7 @@ export const GroupSelector = ({ selectedGroups, onGroupsChange }: GroupSelectorP
     } catch (error: any) {
       console.error('Error fetching groups:', error);
       toast.error('Erro ao buscar grupos', {
-        description: error.message
+        description: error.message || 'Tente novamente em alguns instantes'
       });
     } finally {
       setLoading(false);
@@ -89,6 +108,21 @@ export const GroupSelector = ({ selectedGroups, onGroupsChange }: GroupSelectorP
   }
 
   if (groups.length === 0) {
+    if (noInstance) {
+      return (
+        <div className="text-center py-12">
+          <Smartphone className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+          <p className="text-lg font-medium mb-2">WhatsApp não conectado</p>
+          <p className="text-sm text-muted-foreground mb-6">
+            Você precisa conectar seu WhatsApp antes de buscar grupos
+          </p>
+          <Button onClick={() => navigate('/connect-whatsapp')}>
+            Conectar WhatsApp
+          </Button>
+        </div>
+      );
+    }
+    
     return (
       <div className="text-center py-12">
         <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

@@ -38,14 +38,39 @@ serve(async (req) => {
       .from('whatsapp_instances')
       .select('*')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (instanceError || !instance) {
-      throw new Error('WhatsApp instance not found');
+    if (instanceError) {
+      console.error('Database error:', instanceError);
+      throw new Error(`Database error: ${instanceError.message}`);
+    }
+
+    if (!instance) {
+      console.log('No WhatsApp instance found for user');
+      return new Response(
+        JSON.stringify({ 
+          error: 'WhatsApp não conectado. Por favor, conecte seu WhatsApp primeiro.',
+          groups: [] 
+        }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     if (instance.status !== 'connected') {
-      throw new Error('WhatsApp is not connected');
+      console.log('WhatsApp instance not connected, status:', instance.status);
+      return new Response(
+        JSON.stringify({ 
+          error: 'WhatsApp não está conectado. Por favor, escaneie o QR code primeiro.',
+          groups: [] 
+        }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
