@@ -52,7 +52,7 @@ const Index = () => {
     {
       icon: Send,
       title: "Envio Inteligente",
-      description: "Delay aleatório de 120 a 180 segundos entre mensagens para simular comportamento humano e evitar bloqueios",
+      description: "Delay aleatório de 180 a 300 segundos entre mensagens para simular comportamento humano e evitar bloqueios",
     },
     {
       icon: UserPlus,
@@ -251,7 +251,7 @@ const Index = () => {
                   <h3 className="font-semibold mb-1">Personalize e Dispare</h3>
                   <p className="text-sm text-muted-foreground">
                     Escreva sua mensagem personalizada, revise os contatos validados e inicie o envio automático com
-                    delay aleatório de 120-180 segundos para simular comportamento humano.
+                    delay aleatório de 180-300 segundos para simular comportamento humano.
                   </p>
                 </div>
               </div>
@@ -320,7 +320,7 @@ const Index = () => {
                   <li className="flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
                     <span className="text-sm">
-                      <strong>Envio inteligente</strong> com delay aleatório (120-180s) para evitar bloqueios
+                      <strong>Envio inteligente</strong> com delay aleatório (180-300s) para evitar bloqueios
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
