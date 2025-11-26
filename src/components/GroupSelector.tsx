@@ -95,6 +95,28 @@ export const GroupSelector = ({ selectedGroups, onGroupsChange }: GroupSelectorP
     }
   };
 
+  const handleSelectAll = () => {
+    const allSelected = filteredGroups.every(group => 
+      selectedGroups.some(g => g.id === group.id)
+    );
+    
+    if (allSelected) {
+      // Deselect all filtered groups
+      onGroupsChange(selectedGroups.filter(g => 
+        !filteredGroups.some(fg => fg.id === g.id)
+      ));
+    } else {
+      // Select all filtered groups
+      const newSelected = [...selectedGroups];
+      filteredGroups.forEach(group => {
+        if (!newSelected.some(g => g.id === group.id)) {
+          newSelected.push(group);
+        }
+      });
+      onGroupsChange(newSelected);
+    }
+  };
+
   const filteredGroups = groups.filter(group =>
     group.subject.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -152,6 +174,20 @@ export const GroupSelector = ({ selectedGroups, onGroupsChange }: GroupSelectorP
           </Badge>
         )}
       </div>
+
+      {filteredGroups.length > 0 && (
+        <div className="flex items-center gap-2 py-3 px-1 border-b mb-4">
+          <Checkbox
+            checked={filteredGroups.every(group => 
+              selectedGroups.some(g => g.id === group.id)
+            )}
+            onCheckedChange={handleSelectAll}
+          />
+          <span className="text-sm font-medium">
+            Selecionar todos ({filteredGroups.length})
+          </span>
+        </div>
+      )}
 
       <ScrollArea className="h-[400px] rounded-md border p-4">
         <div className="space-y-3">
