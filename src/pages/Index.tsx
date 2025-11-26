@@ -419,9 +419,7 @@ const Index = () => {
                     <CheckCircle className="h-4 w-4 text-primary" />
                     Delay Inteligente
                   </h3>
-                  <p className="text-sm text-muted-foreground">
-                    Intervalo de 3 a 5 minutos entre mensagens para envios mais rápidos
-                  </p>
+                  <p className="text-sm text-muted-foreground">Intervalo de 4 a 5 minutos entre mensagens para envios mais rápidos</p>
                 </div>
                 <div>
                   <h3 className="font-semibold mb-2 flex items-center gap-2">
