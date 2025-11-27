@@ -10,16 +10,16 @@ export interface MessageTemplate {
 export const getDefaultTemplates = (): MessageTemplate[] => [
   {
     id: "opt-in-completo",
-    title: "Opt-in - Confirmação de Interesse Completo",
+    title: "Opt-in - Confirmação de Interesse Completa",
     message: `Olá {nome}! 👋
 
 Espero que esteja tudo bem com você!
 
-Estamos atualizando nossa lista de contatos e gostaríamos de saber se você deseja continuar recebendo nossas mensagens.
+Estamos atualizando nossa lista de contatos e gostaríamos de saber se você deseja continuar recebendo nossas mensagens e novidades.
 
 Por favor, responda:
 ✅ SIM - para continuar recebendo
-❌ NÃO - para não receber mais
+👉 SAIR - para não receber mais
 
 Obrigado pela atenção! 🙏`,
     category: "opt-in",
@@ -28,14 +28,14 @@ Obrigado pela atenção! 🙏`,
   {
     id: "opt-in-simplificado",
     title: "Opt-in - Confirmação Simplificada",
-    message: "Oi {nome}! Você gostaria de continuar recebendo nossas mensagens? Responda SIM ou NÃO. Obrigado!",
+    message: "Oi {nome}! Você gostaria de continuar recebendo nossas mensagens? Responda **SIM** para continuar ou **SAIR** para não receber mais. Obrigado!",
     category: "opt-in",
     isCustom: false,
   },
   {
     id: "confirmacao-interesse",
     title: "Confirmação de Interesse",
-    message: "{nome}, confirmamos que você deseja receber nossas atualizações? Digite SIM para confirmar ou NÃO para cancelar.",
+    message: "{nome}, confirmamos que você deseja receber nossas atualizações? Digite **SIM** para confirmar ou **SAIR** para cancelar.",
     category: "opt-in",
     isCustom: false,
   },
