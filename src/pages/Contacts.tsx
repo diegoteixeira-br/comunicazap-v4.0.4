@@ -582,52 +582,57 @@ const Contacts = () => {
         {/* Filters and Search */}
         <Card className="mb-6">
           <CardContent className="pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Buscar por nome ou telefone..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                />
+            <div className="space-y-4">
+              {/* Filtros e Busca */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome ou telefone..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+                
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="active">Ativos</SelectItem>
+                    <SelectItem value="unsubscribed">Descadastrados</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={tagFilter} onValueChange={setTagFilter}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Filtrar por tag" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as tags</SelectItem>
+                    <SelectItem value="birthday_today">
+                      <div className="flex items-center gap-2">
+                        <Cake className="h-4 w-4" />
+                        Aniversariantes do Dia
+                      </div>
+                    </SelectItem>
+                    {allTags.map(tag => (
+                      <SelectItem key={tag} value={tag}>{tag}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="active">Ativos</SelectItem>
-                  <SelectItem value="unsubscribed">Descadastrados</SelectItem>
-                </SelectContent>
-              </Select>
 
-              <Select value={tagFilter} onValueChange={setTagFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Filtrar por tag" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todas as tags</SelectItem>
-                  <SelectItem value="birthday_today">
-                    <div className="flex items-center gap-2">
-                      <Cake className="h-4 w-4" />
-                      Aniversariantes do Dia
-                    </div>
-                  </SelectItem>
-                  {allTags.map(tag => (
-                    <SelectItem key={tag} value={tag}>{tag}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
+              {/* Botões de Ação (quando há seleção) */}
               {selectedContacts.size > 0 && (
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button 
                     variant="default" 
                     size="sm"
                     onClick={handleCreateCampaign}
+                    className="w-full sm:w-auto"
                   >
                     <Send className="mr-2 h-4 w-4" />
                     Criar Campanha ({selectedContacts.size})
@@ -636,6 +641,7 @@ const Contacts = () => {
                     variant="outline" 
                     size="sm"
                     onClick={() => setShowBulkTagDialog(true)}
+                    className="w-full sm:w-auto"
                   >
                     <TagIcon className="mr-2 h-4 w-4" />
                     Adicionar Tags
@@ -644,8 +650,10 @@ const Contacts = () => {
                     variant="destructive" 
                     size="sm"
                     onClick={handleBulkDelete}
+                    className="w-full sm:w-auto"
                   >
-                    <Trash2 className="h-4 w-4" />
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Excluir
                   </Button>
                 </div>
               )}
