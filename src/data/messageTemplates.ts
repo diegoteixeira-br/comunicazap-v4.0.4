@@ -40,6 +40,13 @@ Obrigado pela atenção! 🙏`,
     isCustom: false,
   },
   {
+    id: "rodape-opt-out",
+    title: "Rodapé de Mensagem - Opt-out",
+    message: "Caso não queira mais receber nossas mensagens, responda com a palavra **SAIR**.",
+    category: "opt-in",
+    isCustom: false,
+  },
+  {
     id: "saudacao-formal",
     title: "Saudação Formal",
     message: "Olá {nome}, tudo bem? Espero que esteja tendo um ótimo dia!",
