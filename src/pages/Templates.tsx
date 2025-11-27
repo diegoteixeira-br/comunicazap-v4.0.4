@@ -94,8 +94,14 @@ const Templates = () => {
   };
 
   const handleOpenEdit = (template: MessageTemplate) => {
-    setEditingTemplate(template);
-    setFormTitle(template.title);
+    // Se for template padrão, criar cópia personalizada
+    if (!template.isCustom) {
+      setEditingTemplate(null); // Não está editando, está criando novo
+      setFormTitle(`${template.title} (Cópia)`);
+    } else {
+      setEditingTemplate(template);
+      setFormTitle(template.title);
+    }
     setFormMessage(template.message);
     setFormCategory(template.category);
     setShowCreateDialog(true);
@@ -307,6 +313,18 @@ const Templates = () => {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>Copiar</TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleOpenEdit(template)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar como Cópia</TooltipContent>
                         </Tooltip>
                       </div>
                     </CardContent>
