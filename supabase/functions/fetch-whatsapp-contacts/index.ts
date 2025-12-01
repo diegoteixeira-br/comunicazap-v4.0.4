@@ -146,10 +146,29 @@ serve(async (req) => {
       // Get contact name (pushName tem prioridade)
       let name = contact.pushName || contact.name || phone;
       
+      // Log first few contacts for debugging
+      if (acceptedContacts + rejectedContacts < 5) {
+        console.log('Processing contact:', { 
+          originalId: contact.id, 
+          extractedPhone: phone,
+          name: name 
+        });
+      }
+      
       // More flexible validation - accept 8+ digits
       if (phone && phone.length >= 8 && /^\d{8,}$/.test(phone)) {
         // Normalize phone to include country code
         const normalizedPhone = normalizePhone(phone);
+        
+        // Log normalization for first few contacts
+        if (acceptedContacts < 3) {
+          console.log('Normalized:', { 
+            before: phone, 
+            after: normalizedPhone,
+            name: name
+          });
+        }
+        
         contactsMap.set(normalizedPhone, { name, phone: normalizedPhone });
         acceptedContacts++;
       } else {
