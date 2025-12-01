@@ -12,10 +12,9 @@ const MIN_DELAY_BETWEEN_MESSAGES = 5000; // Base: 5s
 const MAX_DELAY_BETWEEN_MESSAGES = 11000; // Base: 11s
 const GAUSSIAN_MEAN = 8000; // Média: 8s
 const GAUSSIAN_STD_DEV = 3000; // Desvio padrão: 3s
-const MIN_BATCH_SIZE = 8; // Lote mínimo
-const MAX_BATCH_SIZE = 15; // Lote máximo
-const MIN_BATCH_PAUSE = 90000; // 90s (1.5 min)
-const MAX_BATCH_PAUSE = 180000; // 180s (3 min)
+const BATCH_SIZE = 5; // Fixo em 5 - limite do WhatsApp para mesma mensagem
+const MIN_BATCH_PAUSE = 120000; // 120s (2 min) - pausa obrigatória entre blocos
+const MAX_BATCH_PAUSE = 240000; // 240s (4 min) - pausa máxima entre blocos
 const WARMUP_MESSAGES = 10; // Primeiras 10 msgs mais lentas
 const LONG_BREAK_CHANCE = 0.10; // 10% chance
 const VERY_LONG_BREAK_CHANCE = 0.05; // 5% chance
@@ -62,8 +61,8 @@ const getWarmupMultiplier = (messageIndex: number): number => {
 const shouldTakeLongBreak = (): boolean => Math.random() < LONG_BREAK_CHANCE;
 const shouldTakeVeryLongBreak = (): boolean => Math.random() < VERY_LONG_BREAK_CHANCE;
 
-// Tamanho de lote variável
-const getNextBatchSize = (): number => getRandomDelay(MIN_BATCH_SIZE, MAX_BATCH_SIZE);
+// Tamanho de lote fixo em 5 (limite do WhatsApp)
+const getBatchSize = (): number => BATCH_SIZE;
 
 // Verificar status da conexão do WhatsApp
 async function checkConnectionStatus(instanceName: string, apiKey: string): Promise<boolean> {
@@ -357,18 +356,19 @@ serve(async (req) => {
       let consecutiveErrors = 0;
       let successCount = 0;
       let failedCount = 0;
-      let nextBatchPause = getNextBatchSize();
       let messagesInCurrentBatch = 0;
 
       console.log(`\n🚀 Iniciando envio de ${clients.length} mensagens com comportamento humano...`);
-      console.log(`📊 Configuração: Warm-up de ${WARMUP_MESSAGES} msgs, lotes de ${MIN_BATCH_SIZE}-${MAX_BATCH_SIZE} msgs`);
+      console.log(`📊 Configuração: Warm-up de ${WARMUP_MESSAGES} msgs, lotes fixos de ${BATCH_SIZE} msgs`);
+      console.log(`⚠️ Limite WhatsApp: máximo 5 mensagens iguais antes de pausa de 2-4 min`);
+      console.log(`📝 Variações disponíveis: ${variations.length}`);
 
       // Enviar mensagens sequencialmente com delays e verificações
       for (let i = 0; i < clients.length; i++) {
         const client = clients[i];
         
-        // Verificar conexão periodicamente
-        if (i > 0 && messagesInCurrentBatch >= nextBatchPause) {
+        // Verificar conexão periodicamente a cada bloco de 5
+        if (i > 0 && messagesInCurrentBatch >= BATCH_SIZE) {
           const isConnected = await checkConnectionStatus(instance.instance_name, instance.api_key);
           if (!isConnected) {
             console.error('❌ WhatsApp desconectado! Pausando campanha...');
@@ -418,10 +418,13 @@ serve(async (req) => {
               .single();
           }
 
-          // Selecionar a variação de mensagem (round-robin)
-          const variationIndex = variations.length > 0 ? i % variations.length : 0;
+          // Selecionar a variação de mensagem POR BLOCO de 5 (não por contato individual)
+          const blockIndex = Math.floor(i / BATCH_SIZE);
+          const variationIndex = variations.length > 0 ? blockIndex % variations.length : 0;
           const selectedMessage = variations[variationIndex] || '';
           const personalizedMessage = selectedMessage.replace('{nome}', client["Nome do Cliente"]);
+          
+          console.log(`📦 Bloco ${blockIndex + 1}, Variação ${variationIndex + 1}/${variations.length}`);
           
           const { data: log } = await supabaseClient
             .from('message_logs')
@@ -541,31 +544,6 @@ serve(async (req) => {
           }
           
           await sleep(finalDelay);
-          
-          // Pausas longas aleatórias (simulam distração humana)
-          if (shouldTakeVeryLongBreak()) {
-            const breakTime = getRandomDelay(120000, 300000); // 2-5 min
-            console.log(`\n☕ Pausa longa simulada: ${breakTime/60000} minutos`);
-            await sleep(breakTime);
-          } else if (shouldTakeLongBreak()) {
-            const breakTime = getRandomDelay(30000, 120000); // 30s-2min
-            console.log(`\n🚶 Pausa curta simulada: ${breakTime/1000}s`);
-            await sleep(breakTime);
-          }
-          
-          // Incrementar contador de mensagens no lote atual
-          messagesInCurrentBatch++;
-          
-          // Pausa de lote com tamanho variável
-          if (messagesInCurrentBatch >= nextBatchPause) {
-            const batchPause = getRandomDelay(MIN_BATCH_PAUSE, MAX_BATCH_PAUSE);
-            console.log(`\n🔄 Pausa de lote após ${messagesInCurrentBatch} msgs: ${batchPause/1000}s`);
-            await sleep(batchPause);
-            
-            messagesInCurrentBatch = 0;
-            nextBatchPause = getNextBatchSize(); // Próximo lote com tamanho diferente
-            console.log(`📦 Próximo lote: ${nextBatchPause} mensagens`);
-          }
         }
       }
 
