@@ -89,26 +89,6 @@ const Results = () => {
     return Math.ceil(contactCount / 5); // Ex: 200 contatos = 40 variações
   };
 
-  const getAvailableVariationOptions = (requiredCount: number): number[] => {
-    // Opções base
-    const baseOptions = [1, 3, 5, 7, 10, 12, 15, 20, 25, 30, 40, 50, 75, 100];
-    
-    // Filtrar apenas opções >= ao necessário (não pode ter menos que o necessário)
-    const validOptions = baseOptions.filter(opt => opt >= requiredCount);
-    
-    // Se o número exato necessário não está nas opções, adicionar no início
-    if (requiredCount > 0 && !validOptions.includes(requiredCount)) {
-      validOptions.unshift(requiredCount);
-    }
-    
-    // Se não sobrou nenhuma opção, retornar pelo menos o necessário
-    if (validOptions.length === 0) {
-      return [requiredCount];
-    }
-    
-    return validOptions;
-  };
-
   // Função para alterar quantidade de variações
   const handleVariationCountChange = (newCount: number) => {
     setVariationCount(newCount);
@@ -1419,20 +1399,7 @@ const Results = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-2 border-b">
                   <div className="flex items-center gap-2">
                     <Label className="text-sm whitespace-nowrap">Variações:</Label>
-                    <Select 
-                      value={variationCount.toString()} 
-                      onValueChange={(v) => handleVariationCountChange(Number(v))}
-                      disabled={isSending || getRequiredVariationCount(clients.length) === 1}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {getAvailableVariationOptions(getRequiredVariationCount(clients.length)).map(num => (
-                          <SelectItem key={num} value={num.toString()}>{num}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <span className="font-semibold text-lg text-primary">{variationCount}</span>
                   </div>
                   
                   {(() => {
