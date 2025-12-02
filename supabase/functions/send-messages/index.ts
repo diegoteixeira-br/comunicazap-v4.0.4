@@ -7,23 +7,20 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Configurações de comportamento humano
-const MIN_DELAY_BETWEEN_MESSAGES = 5000; // Base: 5s
-const MAX_DELAY_BETWEEN_MESSAGES = 11000; // Base: 11s
-const GAUSSIAN_MEAN = 8000; // Média: 8s
-const GAUSSIAN_STD_DEV = 3000; // Desvio padrão: 3s
-const BATCH_SIZE = 5; // Fixo em 5 - limite do WhatsApp para mesma mensagem
-const MIN_BATCH_PAUSE = 120000; // 120s (2 min) - pausa obrigatória entre blocos
-const MAX_BATCH_PAUSE = 240000; // 240s (4 min) - pausa máxima entre blocos
-const WARMUP_MESSAGES = 10; // Primeiras 10 msgs mais lentas
-const LONG_BREAK_CHANCE = 0.10; // 10% chance
-const VERY_LONG_BREAK_CHANCE = 0.05; // 5% chance
+// ============= CONFIGURAÇÕES OTIMIZADAS PARA CHUNKS =============
+// Cada chunk deve completar em ~50s (margem de segurança do timeout de 60s)
+const CHUNK_SIZE = 12; // Mensagens por chunk
+const MIN_DELAY_BETWEEN_MESSAGES = 3000; // 3s (otimizado)
+const MAX_DELAY_BETWEEN_MESSAGES = 6000; // 6s (otimizado)
+const GAUSSIAN_MEAN = 4000; // 4s média (otimizado)
+const GAUSSIAN_STD_DEV = 1500; // 1.5s desvio
+const BATCH_SIZE = 5; // Limite WhatsApp para mesma mensagem
+const WARMUP_MESSAGES = 5; // Warm-up apenas nos primeiros 5 do primeiro chunk
 const MAX_CONSECUTIVE_ERRORS = 3;
-const ERROR_RECOVERY_PAUSE = 180000; // 3 minutos
-const REQUEST_TIMEOUT = 30000; // 30 segundos
-const BASE_TYPING_SPEED = 200; // caracteres por minuto
-const MIN_TYPING_DELAY = 2000; // 2s mínimo
-const MAX_TYPING_DELAY = 15000; // 15s máximo
+const REQUEST_TIMEOUT = 25000; // 25s (reduzido para caber no chunk)
+const BASE_TYPING_SPEED = 200;
+const MIN_TYPING_DELAY = 1500; // 1.5s mínimo
+const MAX_TYPING_DELAY = 8000; // 8s máximo (reduzido)
 
 // Funções auxiliares
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
@@ -32,11 +29,11 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const escapeTextForJson = (text: string): string => {
   if (!text) return '';
   return text
-    .replace(/\\/g, '\\\\')     // Backslash primeiro
-    .replace(/\n/g, '\\n')      // Nova linha → \n
-    .replace(/\r/g, '\\r')      // Retorno de carro → \r
-    .replace(/\t/g, '\\t')      // Tab → \t
-    .replace(/"/g, '\\"');      // Aspas → \"
+    .replace(/\\/g, '\\\\')
+    .replace(/\n/g, '\\n')
+    .replace(/\r/g, '\\r')
+    .replace(/\t/g, '\\t')
+    .replace(/"/g, '\\"');
 };
 
 const getRandomDelay = (min: number, max: number) => {
@@ -49,7 +46,6 @@ const gaussianRandom = (mean: number, stdDev: number): number => {
   const u2 = Math.random();
   const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
   const result = Math.round(mean + z * stdDev);
-  // Garantir que está dentro de limites razoáveis
   return Math.max(MIN_DELAY_BETWEEN_MESSAGES, Math.min(MAX_DELAY_BETWEEN_MESSAGES, result));
 };
 
@@ -60,52 +56,45 @@ const calculateTypingDelay = (message: string): number => {
   return Math.min(Math.max(calculatedDelay, MIN_TYPING_DELAY), MAX_TYPING_DELAY);
 };
 
-// Multiplicador de warm-up para primeiras mensagens
-const getWarmupMultiplier = (messageIndex: number): number => {
-  if (messageIndex < 3) return 3.0;   // 3x mais lento
-  if (messageIndex < 6) return 2.0;   // 2x mais lento
+// Multiplicador de warm-up APENAS para primeiro chunk
+const getWarmupMultiplier = (messageIndex: number, isFirstChunk: boolean): number => {
+  if (!isFirstChunk) return 1.0; // Sem warm-up em chunks subsequentes
+  if (messageIndex < 2) return 2.0; // 2x mais lento
   if (messageIndex < WARMUP_MESSAGES) return 1.5; // 1.5x mais lento
-  return 1.0; // Velocidade normal
+  return 1.0;
 };
-
-// Chance de pausas longas
-const shouldTakeLongBreak = (): boolean => Math.random() < LONG_BREAK_CHANCE;
-const shouldTakeVeryLongBreak = (): boolean => Math.random() < VERY_LONG_BREAK_CHANCE;
-
-// Tamanho de lote fixo em 5 (limite do WhatsApp)
-const getBatchSize = (): number => BATCH_SIZE;
 
 // Verificar status da conexão do WhatsApp
 async function checkConnectionStatus(instanceName: string, apiKey: string): Promise<boolean> {
   try {
     const evolutionApiUrl = Deno.env.get('EVOLUTION_API_URL');
-    if (!evolutionApiUrl) return true; // Se não tiver URL configurada, assumir conectado
+    if (!evolutionApiUrl) return true;
     
     const response = await fetch(
       `${evolutionApiUrl}/instance/connectionState/${instanceName}`,
       { 
         headers: { 'apikey': apiKey },
-        signal: AbortSignal.timeout(10000)
+        signal: AbortSignal.timeout(8000)
       }
     );
     
-    if (!response.ok) return true; // Se falhar a verificação, continuar tentando
+    if (!response.ok) return true;
     
     const data = await response.json();
     const isConnected = data?.instance?.state === 'open';
-    console.log(`📡 Status da conexão: ${isConnected ? '✅ Conectado' : '❌ Desconectado'}`);
+    console.log(`📡 Status: ${isConnected ? '✅ Conectado' : '❌ Desconectado'}`);
     return isConnected;
   } catch (error) {
     console.error('Erro ao verificar conexão:', error);
-    return true; // Em caso de erro, assumir conectado para não bloquear
+    return true;
   }
 }
 
-// Sistema de retry com backoff exponencial
+// Sistema de retry com backoff
 async function sendWithRetry(
   n8nWebhookUrl: string,
   payload: any,
-  maxRetries: number = 3
+  maxRetries: number = 2
 ): Promise<{ success: boolean; error?: string; response?: Response }> {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -128,7 +117,6 @@ async function sendWithRetry(
         return { success: true, response };
       }
       
-      // Se não for erro de servidor, não tentar novamente
       if (![500, 502, 503].includes(response.status)) {
         return { success: false, error: `HTTP ${response.status}` };
       }
@@ -143,32 +131,15 @@ async function sendWithRetry(
       }
     }
     
-    // Backoff exponencial: 5s, 10s, 20s
+    // Backoff: 3s, 6s
     if (attempt < maxRetries) {
-      const backoffDelay = 5000 * Math.pow(2, attempt - 1);
-      console.log(`⏳ Aguardando ${backoffDelay/1000}s antes de retry...`);
+      const backoffDelay = 3000 * attempt;
+      console.log(`⏳ Retry em ${backoffDelay/1000}s...`);
       await sleep(backoffDelay);
     }
   }
   
   return { success: false, error: 'Max retries exceeded' };
-}
-
-// Pausar campanha
-async function pauseCampaign(
-  supabaseClient: any,
-  campaignId: string,
-  reason: string
-) {
-  await supabaseClient
-    .from('message_campaigns')
-    .update({ 
-      status: 'paused',
-      completed_at: new Date().toISOString()
-    })
-    .eq('id', campaignId);
-  
-  console.log(`⏸️ Campanha pausada: ${reason}`);
 }
 
 serve(async (req) => {
@@ -190,28 +161,40 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Input validation schema
+    // Input validation schema - ATUALIZADO COM CHUNK PARAMS
     const clientSchema = z.object({
-      "Nome do Cliente": z.string().trim().min(1, "Client name is required").max(100, "Client name too long"),
-      "Telefone do Cliente": z.string().regex(/^\+?[1-9]\d{1,14}$/, "Invalid phone number format")
+      "Nome do Cliente": z.string().trim().min(1).max(100),
+      "Telefone do Cliente": z.string().regex(/^\+?[1-9]\d{1,14}$|^[0-9]+@g\.us$/)
     });
 
     const requestSchema = z.object({
       clients: z.array(clientSchema).optional().nullable(),
       targetTags: z.array(z.string()).optional().nullable(),
-      message: z.string().trim().max(1000, "Message too long").optional().nullable(),
-      messageVariations: z.array(z.string().trim().max(1000, "Message too long")).optional().nullable(),
+      message: z.string().trim().max(1000).optional().nullable(),
+      messageVariations: z.array(z.string().trim().max(1000)).optional().nullable(),
       image: z.string().optional().nullable(),
-      campaignName: z.string().trim().max(100, "Campaign name too long").optional().nullable()
+      campaignName: z.string().trim().max(100).optional().nullable(),
+      // NOVOS PARÂMETROS PARA CHUNKS
+      chunkIndex: z.number().int().min(0).optional().default(0),
+      existingCampaignId: z.string().uuid().optional().nullable()
     });
 
-    // Validate input
     const validatedData = requestSchema.parse(await req.json());
-    const { clients: providedClients, targetTags, message, messageVariations, image, campaignName } = validatedData;
+    const { 
+      clients: providedClients, 
+      targetTags, 
+      message, 
+      messageVariations, 
+      image, 
+      campaignName,
+      chunkIndex,
+      existingCampaignId
+    } = validatedData;
     
     let clients = providedClients || [];
+    const isFirstChunk = chunkIndex === 0;
     
-    // If target tags are provided, fetch contacts from database
+    // Buscar contatos por tags se necessário
     if (targetTags && targetTags.length > 0) {
       console.log('Fetching contacts by tags:', targetTags);
       
@@ -222,10 +205,7 @@ serve(async (req) => {
         .eq('status', 'active')
         .contains('tags', targetTags);
       
-      if (contactsError) {
-        console.error('Error fetching contacts:', contactsError);
-        throw contactsError;
-      }
+      if (contactsError) throw contactsError;
       
       clients = contactsFromDb.map(contact => ({
         "Nome do Cliente": contact.name || contact.phone_number,
@@ -235,31 +215,32 @@ serve(async (req) => {
       console.log(`Found ${clients.length} contacts with tags`);
     }
     
-    // Validate we have clients
     if (!clients || clients.length === 0) {
       throw new Error('No clients provided or found with the specified tags');
     }
     
-    if (clients.length > 1000) {
-      throw new Error('Maximum 1000 clients per campaign');
+    if (clients.length > 2000) {
+      throw new Error('Maximum 2000 clients per campaign');
     }
 
-    // Usar variações se fornecidas, senão usar mensagem única
     const variations = messageVariations && messageVariations.length > 0 
       ? messageVariations 
       : (message ? [message] : []);
 
-    // Validar que ao menos mensagem ou imagem está presente
     if (variations.length === 0 && !image) {
       throw new Error('Either message or image is required');
     }
 
-    console.log('Send messages request:', { 
-      user: user.id, 
-      clientsCount: clients.length,
-      campaignName 
-    });
+    // Calcular slice do chunk
+    const startIndex = chunkIndex * CHUNK_SIZE;
+    const endIndex = Math.min(startIndex + CHUNK_SIZE, clients.length);
+    const clientsToProcess = clients.slice(startIndex, endIndex);
+    const hasMore = endIndex < clients.length;
 
+    console.log(`\n🚀 CHUNK ${chunkIndex + 1}: Processando ${clientsToProcess.length} de ${clients.length} contatos`);
+    console.log(`📊 Índices: ${startIndex} até ${endIndex - 1} | hasMore: ${hasMore}`);
+
+    // Buscar instância WhatsApp
     const { data: instance, error: instanceError } = await supabaseClient
       .from('whatsapp_instances')
       .select('*')
@@ -274,45 +255,71 @@ serve(async (req) => {
       throw new Error('WhatsApp is not connected. Please scan the QR code first.');
     }
 
-    const { data: campaign, error: campaignError } = await supabaseClient
-      .from('message_campaigns')
-      .insert({
-        user_id: user.id,
-        instance_id: instance.id,
-        campaign_name: campaignName || `Campaign ${new Date().toISOString()}`,
-        total_contacts: clients.length,
-        message_variations: variations,
-        target_tags: targetTags || [],
-        status: 'in_progress'
-      })
-      .select()
-      .single();
-
-    if (campaignError) {
-      console.error('Campaign creation error:', campaignError);
-      throw campaignError;
+    // Verificar conexão no início
+    if (isFirstChunk) {
+      const isConnected = await checkConnectionStatus(instance.instance_name, instance.api_key);
+      if (!isConnected) {
+        throw new Error('WhatsApp disconnected. Please reconnect.');
+      }
     }
 
-    console.log('Campaign created:', campaign.id);
+    // Criar ou reutilizar campanha
+    let campaign: any;
+    
+    if (existingCampaignId && !isFirstChunk) {
+      // Reutilizar campanha existente
+      const { data: existingCampaign, error: fetchError } = await supabaseClient
+        .from('message_campaigns')
+        .select('*')
+        .eq('id', existingCampaignId)
+        .eq('user_id', user.id)
+        .single();
+      
+      if (fetchError || !existingCampaign) {
+        throw new Error('Campaign not found');
+      }
+      
+      campaign = existingCampaign;
+      console.log(`📋 Usando campanha existente: ${campaign.id}`);
+    } else {
+      // Criar nova campanha (primeiro chunk)
+      const { data: newCampaign, error: campaignError } = await supabaseClient
+        .from('message_campaigns')
+        .insert({
+          user_id: user.id,
+          instance_id: instance.id,
+          campaign_name: campaignName || `Campaign ${new Date().toISOString()}`,
+          total_contacts: clients.length,
+          message_variations: variations,
+          target_tags: targetTags || [],
+          status: 'in_progress'
+        })
+        .select()
+        .single();
+
+      if (campaignError) throw campaignError;
+      
+      campaign = newCampaign;
+      console.log(`📋 Nova campanha criada: ${campaign.id}`);
+    }
 
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
-    
     if (!n8nWebhookUrl) {
       throw new Error('N8N webhook URL not configured');
     }
     
     if (!instance.api_key) {
-      throw new Error('Instance API key missing. Please reconnect your WhatsApp.');
+      throw new Error('Instance API key missing');
     }
 
-    // Upload image to Supabase Storage if provided
+    // Upload de mídia apenas no primeiro chunk
     let mediaUrl: string | null = null;
     let mediaType: string | null = null;
-    if (image) {
+    
+    if (image && isFirstChunk) {
       try {
-        console.log('Uploading media to Supabase Storage...');
+        console.log('Uploading media...');
         
-        // Extract base64 data and mime type
         const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
         if (!matches || matches.length !== 3) {
           throw new Error('Invalid image format');
@@ -321,247 +328,202 @@ serve(async (req) => {
         mediaType = matches[1];
         const base64Data = matches[2];
         
-        // Convert base64 to binary
         const binaryString = atob(base64Data);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
         
-        // Generate unique filename
         const extension = mediaType.split('/')[1];
         const fileName = `${user.id}/${campaign.id}.${extension}`;
         
-        // Upload to Supabase Storage
-        const { data: uploadData, error: uploadError } = await supabaseClient
+        const { error: uploadError } = await supabaseClient
           .storage
           .from('campaign-media')
           .upload(fileName, bytes, {
             contentType: mediaType,
-            upsert: false
+            upsert: true
           });
         
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          throw uploadError;
-        }
+        if (uploadError) throw uploadError;
         
-        // Get public URL
         const { data: { publicUrl } } = supabaseClient
           .storage
           .from('campaign-media')
           .getPublicUrl(fileName);
         
         mediaUrl = publicUrl;
-        console.log('Media uploaded successfully:', mediaUrl);
+        console.log('Media uploaded:', mediaUrl);
         
       } catch (uploadError: any) {
-        console.error('Failed to upload media:', uploadError);
-        throw new Error(`Failed to upload media: ${uploadError.message}`);
+        console.error('Media upload failed:', uploadError);
+        // Continuar sem mídia se falhar
       }
     }
 
-    // Retornar resposta imediata e processar em background
-    const backgroundTask = async () => {
-      const results = [];
-      let consecutiveErrors = 0;
-      let successCount = 0;
-      let failedCount = 0;
-      let messagesInCurrentBatch = 0;
+    // ============= PROCESSAMENTO SÍNCRONO DO CHUNK =============
+    let successCount = 0;
+    let failedCount = 0;
+    let consecutiveErrors = 0;
+    let messagesInCurrentBatch = 0;
 
-      console.log(`\n🚀 Iniciando envio de ${clients.length} mensagens com comportamento humano...`);
-      console.log(`📊 Configuração: Warm-up de ${WARMUP_MESSAGES} msgs, lotes fixos de ${BATCH_SIZE} msgs`);
-      console.log(`⚠️ Limite WhatsApp: máximo 5 mensagens iguais antes de pausa de 2-4 min`);
-      console.log(`📝 Variações disponíveis: ${variations.length}`);
+    for (let i = 0; i < clientsToProcess.length; i++) {
+      const client = clientsToProcess[i];
+      const globalIndex = startIndex + i; // Índice global para variações
+      
+      try {
+        // Verificar status do contato
+        const { data: contact } = await supabaseClient
+          .from('contacts')
+          .select('status')
+          .eq('user_id', user.id)
+          .eq('phone_number', client["Telefone do Cliente"])
+          .maybeSingle();
 
-      // Enviar mensagens sequencialmente com delays e verificações
-      for (let i = 0; i < clients.length; i++) {
-        const client = clients[i];
-        
-        // Verificar conexão periodicamente a cada bloco de 5
-        if (i > 0 && messagesInCurrentBatch >= BATCH_SIZE) {
-          const isConnected = await checkConnectionStatus(instance.instance_name, instance.api_key);
-          if (!isConnected) {
-            console.error('❌ WhatsApp desconectado! Pausando campanha...');
-            await pauseCampaign(supabaseClient, campaign.id, 'WhatsApp disconnected');
-            break;
-          }
-        }
-        
-        try {
-          // Check contact status in contacts table
-          const { data: contact } = await supabaseClient
-            .from('contacts')
-            .select('status')
-            .eq('user_id', user.id)
-            .eq('phone_number', client["Telefone do Cliente"])
-            .maybeSingle();
-
-          if (contact?.status === 'unsubscribed') {
-            console.log(`⛔ ${client["Nome do Cliente"]} optou por sair, pulando...`);
-            
-            // Log as blocked
-            await supabaseClient
-              .from('message_logs')
-              .insert({
-                campaign_id: campaign.id,
-                client_name: client["Nome do Cliente"],
-                client_phone: client["Telefone do Cliente"],
-                message: '[Bloqueado - Opt-out]',
-                status: 'blocked'
-              });
-
-            continue; // Skip to next contact
-          }
+        if (contact?.status === 'unsubscribed') {
+          console.log(`⛔ ${client["Nome do Cliente"]} optou por sair, pulando...`);
           
-          // If contact doesn't exist in contacts table and not from targetTags, insert it
-          if (!contact && !targetTags) {
-            console.log(`➕ Adicionando ${client["Nome do Cliente"]} aos contatos`);
-            await supabaseClient
-              .from('contacts')
-              .insert({
-                user_id: user.id,
-                phone_number: client["Telefone do Cliente"],
-                name: client["Nome do Cliente"],
-                status: 'active'
-              })
-              .select()
-              .single();
-          }
-
-          // Selecionar a variação de mensagem POR BLOCO de 5 (não por contato individual)
-          const blockIndex = Math.floor(i / BATCH_SIZE);
-          const variationIndex = variations.length > 0 ? blockIndex % variations.length : 0;
-          const selectedMessage = variations[variationIndex] || '';
-          const personalizedMessage = selectedMessage.replace('{nome}', client["Nome do Cliente"]);
-          
-          console.log(`📦 Bloco ${blockIndex + 1}, Variação ${variationIndex + 1}/${variations.length}`);
-          
-          const { data: log } = await supabaseClient
+          await supabaseClient
             .from('message_logs')
             .insert({
               campaign_id: campaign.id,
               client_name: client["Nome do Cliente"],
               client_phone: client["Telefone do Cliente"],
-              message: personalizedMessage || (mediaUrl ? `[Mídia: ${mediaUrl}]` : ''),
-              message_variation_index: variationIndex,
-              status: 'pending'
+              message: '[Bloqueado - Opt-out]',
+              status: 'blocked'
+            });
+
+          continue;
+        }
+        
+        // Adicionar contato se não existir
+        if (!contact && !targetTags) {
+          await supabaseClient
+            .from('contacts')
+            .insert({
+              user_id: user.id,
+              phone_number: client["Telefone do Cliente"],
+              name: client["Nome do Cliente"],
+              status: 'active'
             })
             .select()
             .single();
+        }
 
-          // Calcular delay de digitação baseado no tamanho da mensagem
-          const typingDelay = personalizedMessage?.trim() 
-            ? calculateTypingDelay(personalizedMessage)
-            : MIN_TYPING_DELAY;
+        // Selecionar variação por bloco de 5 (limite WhatsApp)
+        const blockIndex = Math.floor(globalIndex / BATCH_SIZE);
+        const variationIndex = variations.length > 0 ? blockIndex % variations.length : 0;
+        const selectedMessage = variations[variationIndex] || '';
+        const personalizedMessage = selectedMessage.replace(/{nome}/g, client["Nome do Cliente"]);
+        
+        // Criar log
+        const { data: log } = await supabaseClient
+          .from('message_logs')
+          .insert({
+            campaign_id: campaign.id,
+            client_name: client["Nome do Cliente"],
+            client_phone: client["Telefone do Cliente"],
+            message: personalizedMessage || (mediaUrl ? `[Mídia]` : ''),
+            message_variation_index: variationIndex,
+            status: 'pending'
+          })
+          .select()
+          .single();
 
-          // Escapar o texto para JSON seguro
-          const safeText = escapeTextForJson(personalizedMessage);
+        const typingDelay = personalizedMessage?.trim() 
+          ? calculateTypingDelay(personalizedMessage)
+          : MIN_TYPING_DELAY;
 
-          const payload: any = {
-            instanceName: instance.instance_name,
-            api_key: instance.api_key,
-            number: client["Telefone do Cliente"],
-            options: {
-              delay: typingDelay,
-              presence: "composing" // Simula "digitando..."
-            }
-          };
+        const safeText = escapeTextForJson(personalizedMessage);
 
-          // Adicionar texto escapado se existir
-          if (safeText?.trim()) {
-            payload.text = safeText;
+        const payload: any = {
+          instanceName: instance.instance_name,
+          api_key: instance.api_key,
+          number: client["Telefone do Cliente"],
+          options: {
+            delay: typingDelay,
+            presence: "composing"
           }
+        };
 
-          // Adicionar URL da mídia se existir
-          if (mediaUrl) {
-            payload.mediaUrl = mediaUrl;
-            payload.mediaType = mediaType;
-          }
+        if (safeText?.trim()) {
+          payload.text = safeText;
+        }
 
-          console.log(`\n📤 [${i + 1}/${clients.length}] Enviando para ${client["Nome do Cliente"]}...`);
-          console.log(`⌨️ Simulando digitação: ${typingDelay}ms`);
-          
-          const sendResult = await sendWithRetry(n8nWebhookUrl, payload);
+        if (mediaUrl) {
+          payload.mediaUrl = mediaUrl;
+          payload.mediaType = mediaType;
+        }
 
-          if (sendResult.success) {
-            await supabaseClient
-              .from('message_logs')
-              .update({ 
-                status: 'sent',
-                sent_at: new Date().toISOString()
-              })
-              .eq('id', log.id);
+        console.log(`📤 [${globalIndex + 1}/${clients.length}] Enviando para ${client["Nome do Cliente"]}...`);
+        
+        const sendResult = await sendWithRetry(n8nWebhookUrl, payload);
 
-            await supabaseClient.rpc('increment_sent_count', { 
-              campaign_id: campaign.id 
-            });
-
-            successCount++;
-            consecutiveErrors = 0; // Reset contador de erros
-            results.push({ success: true, client: client["Nome do Cliente"] });
-            console.log(`📊 Progresso: ${successCount} enviados | ${failedCount} falhas`);
-          } else {
-            throw new Error(sendResult.error || 'Send failed');
-          }
-
-        } catch (error: any) {
-          console.error(`❌ Falha ao enviar para ${client["Nome do Cliente"]}:`, error.message);
-          
+        if (sendResult.success) {
           await supabaseClient
             .from('message_logs')
             .update({ 
-              status: 'failed',
-              error_message: error.message
+              status: 'sent',
+              sent_at: new Date().toISOString()
             })
-            .eq('campaign_id', campaign.id)
-            .eq('client_phone', client["Telefone do Cliente"]);
+            .eq('id', log.id);
 
-          await supabaseClient.rpc('increment_failed_count', { 
+          await supabaseClient.rpc('increment_sent_count', { 
             campaign_id: campaign.id 
           });
 
-          failedCount++;
-          consecutiveErrors++;
-          results.push({ success: false, client: client["Nome do Cliente"], error: error.message });
-          
-          // Pausa de recuperação em caso de erros consecutivos
-          if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-            console.log(`\n🚨 ${MAX_CONSECUTIVE_ERRORS} erros consecutivos detectados!`);
-            console.log(`⏸️ Pausando ${ERROR_RECOVERY_PAUSE/1000}s para recuperação...`);
-            await sleep(ERROR_RECOVERY_PAUSE);
-            
-            // Re-verificar conexão após recuperação
-            const isConnected = await checkConnectionStatus(instance.instance_name, instance.api_key);
-            if (!isConnected) {
-              console.error('❌ WhatsApp ainda desconectado após recuperação!');
-              await pauseCampaign(supabaseClient, campaign.id, 'Connection issues');
-              break;
-            }
-            
-            consecutiveErrors = 0; // Reset após pausa
-            console.log('✅ Retomando envios...');
-          }
+          successCount++;
+          consecutiveErrors = 0;
+          messagesInCurrentBatch++;
+          console.log(`✅ Enviado! Progresso chunk: ${successCount}/${clientsToProcess.length}`);
+        } else {
+          throw new Error(sendResult.error || 'Send failed');
         }
 
-        // Delay inteligente entre mensagens com distribuição gaussiana
-        if (i < clients.length - 1) {
-          // Aplicar multiplicador de warm-up
-          const warmupMultiplier = getWarmupMultiplier(i);
-          const baseDelay = gaussianRandom(GAUSSIAN_MEAN, GAUSSIAN_STD_DEV);
-          const finalDelay = Math.round(baseDelay * warmupMultiplier);
-          
-          if (warmupMultiplier > 1.0) {
-            console.log(`🐢 Warm-up [${i + 1}]: ${finalDelay/1000}s (${warmupMultiplier}x mais lento)`);
-          } else {
-            console.log(`⏱️ Aguardando ${finalDelay/1000}s...`);
-          }
-          
-          await sleep(finalDelay);
+      } catch (error: any) {
+        console.error(`❌ Falha: ${client["Nome do Cliente"]} - ${error.message}`);
+        
+        await supabaseClient
+          .from('message_logs')
+          .update({ 
+            status: 'failed',
+            error_message: error.message
+          })
+          .eq('campaign_id', campaign.id)
+          .eq('client_phone', client["Telefone do Cliente"]);
+
+        await supabaseClient.rpc('increment_failed_count', { 
+          campaign_id: campaign.id 
+        });
+
+        failedCount++;
+        consecutiveErrors++;
+        
+        // Se muitos erros consecutivos, parar chunk
+        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+          console.log(`🚨 ${MAX_CONSECUTIVE_ERRORS} erros consecutivos! Parando chunk...`);
+          break;
         }
       }
 
-      // Finalizar campanha
+      // Delay entre mensagens (exceto última)
+      if (i < clientsToProcess.length - 1) {
+        const warmupMultiplier = getWarmupMultiplier(i, isFirstChunk);
+        const baseDelay = gaussianRandom(GAUSSIAN_MEAN, GAUSSIAN_STD_DEV);
+        const finalDelay = Math.round(baseDelay * warmupMultiplier);
+        
+        if (warmupMultiplier > 1.0) {
+          console.log(`🐢 Warm-up: ${finalDelay/1000}s (${warmupMultiplier}x)`);
+        } else {
+          console.log(`⏱️ Delay: ${finalDelay/1000}s`);
+        }
+        
+        await sleep(finalDelay);
+      }
+    }
+
+    // Se não há mais mensagens, finalizar campanha
+    if (!hasMore) {
       await supabaseClient
         .from('message_campaigns')
         .update({ 
@@ -569,22 +531,38 @@ serve(async (req) => {
           completed_at: new Date().toISOString()
         })
         .eq('id', campaign.id);
+      
+      console.log(`\n🎉 Campanha finalizada!`);
+    }
 
-      console.log(`\n✅ Campanha finalizada!`);
-      console.log(`📊 Resultado final: ${successCount} enviados | ${failedCount} falhas`);
-    };
+    // Buscar totais atualizados
+    const { data: updatedCampaign } = await supabaseClient
+      .from('message_campaigns')
+      .select('sent_count, failed_count')
+      .eq('id', campaign.id)
+      .single();
 
-    // Iniciar processamento em background
-    // @ts-ignore - EdgeRuntime is available in Supabase Edge Functions
-    EdgeRuntime.waitUntil(backgroundTask());
+    console.log(`\n📊 Chunk ${chunkIndex + 1} completo: ${successCount} enviados, ${failedCount} falhas`);
+    console.log(`📊 Total campanha: ${updatedCampaign?.sent_count || 0} enviados, ${updatedCampaign?.failed_count || 0} falhas`);
 
-    // Retornar resposta imediata
+    // Retornar resultado do chunk
     return new Response(
       JSON.stringify({ 
         success: true,
-        campaign: campaign.id,
-        message: `Campanha iniciada! ${clients.length} mensagens serão enviadas. Acompanhe o progresso no histórico.`,
-        totalContacts: clients.length
+        campaignId: campaign.id,
+        chunkIndex,
+        processed: successCount + failedCount,
+        chunkSuccess: successCount,
+        chunkFailed: failedCount,
+        totalContacts: clients.length,
+        currentIndex: endIndex,
+        hasMore,
+        progress: {
+          sent: updatedCampaign?.sent_count || 0,
+          failed: updatedCampaign?.failed_count || 0,
+          total: clients.length
+        },
+        nextChunkIndex: hasMore ? chunkIndex + 1 : null
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' } }
     );

@@ -48,6 +48,8 @@ const Results = () => {
   const [campaignProgress, setCampaignProgress] = useState({ sent: 0, failed: 0, total: 0 });
   const [isSending, setIsSending] = useState(false);
   const [messageLogs, setMessageLogs] = useState<any[]>([]);
+  const [currentChunk, setCurrentChunk] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
   
   // Template states
   const [showTemplates, setShowTemplates] = useState(false);
@@ -634,14 +636,18 @@ const Results = () => {
     }
 
     const campaignName = `Envio em massa - ${new Date().toLocaleString('pt-BR')}`;
+    const CHUNK_SIZE = 12; // Deve corresponder ao backend
+    const estimatedChunks = Math.ceil(availableClients.length / CHUNK_SIZE);
 
     setIsSending(true);
     setCampaignProgress({ sent: 0, failed: 0, total: availableClients.length });
     setMessageLogs([]);
-    setSendingStatus({}); // Resetar status
+    setSendingStatus({});
+    setCurrentChunk(0);
+    setTotalChunks(estimatedChunks);
 
-    toast.info("Iniciando envio...", {
-      description: `Enviando para ${availableClients.length} contato(s)`
+    toast.info("Iniciando envio em chunks...", {
+      description: `${availableClients.length} contatos em ~${estimatedChunks} chunk(s)`
     });
 
     try {
@@ -683,32 +689,69 @@ const Results = () => {
         }
       }
 
-      
-      // Enviar variações preenchidas
-      const filledVariations = messageVariations.filter(v => v.trim());
+      // ============= LOOP DE CHUNKS =============
+      let chunkIndex = 0;
+      let hasMore = true;
+      let campaignId: string | null = null;
 
-      const { data, error } = await supabase.functions.invoke('send-messages', {
-        body: {
-          clients: clientsData,
-          messageVariations: filledVariations.length > 0 ? filledVariations : undefined,
-          message: filledVariations.length > 0 ? filledVariations[0] : undefined,
-          image: imageBase64,
-          campaignName
+      while (hasMore) {
+        setCurrentChunk(chunkIndex + 1);
+        
+        console.log(`🚀 Enviando chunk ${chunkIndex + 1}/${estimatedChunks}...`);
+        
+        const { data, error } = await supabase.functions.invoke('send-messages', {
+          body: {
+            clients: clientsData,
+            messageVariations: filledVariations.length > 0 ? filledVariations : undefined,
+            message: filledVariations.length > 0 ? filledVariations[0] : undefined,
+            image: chunkIndex === 0 ? imageBase64 : undefined, // Só enviar imagem no primeiro chunk
+            campaignName,
+            chunkIndex,
+            existingCampaignId: campaignId
+          }
+        });
+
+        if (error) {
+          console.error(`❌ Erro no chunk ${chunkIndex + 1}:`, error);
+          throw error;
         }
+
+        if (!data?.success) {
+          throw new Error(data?.error || `Falha no chunk ${chunkIndex + 1}`);
+        }
+
+        // Atualizar estado com resultado do chunk
+        campaignId = data.campaignId;
+        setActiveCampaignId(campaignId);
+        
+        // Atualizar progresso
+        setCampaignProgress({
+          sent: data.progress.sent,
+          failed: data.progress.failed,
+          total: data.progress.total
+        });
+
+        console.log(`✅ Chunk ${chunkIndex + 1} completo: ${data.chunkSuccess} enviados, ${data.chunkFailed} falhas`);
+        console.log(`📊 Total: ${data.progress.sent}/${data.progress.total} enviados`);
+
+        hasMore = data.hasMore;
+        
+        if (hasMore) {
+          chunkIndex++;
+          // Pequena pausa entre chunks (2s) para não sobrecarregar
+          toast.info(`Chunk ${chunkIndex}/${estimatedChunks} concluído`, {
+            description: `Aguardando próximo chunk...`
+          });
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+      }
+
+      // Campanha finalizada!
+      setIsSending(false);
+      toast.success("Envio concluído!", {
+        description: `${campaignProgress.sent} enviadas, ${campaignProgress.failed} falharam`
       });
 
-      if (error) throw error;
-
-      if (data?.success) {
-        // Ativar monitoramento em tempo real
-        setActiveCampaignId(data.campaign);
-        
-        toast.info("Enviando mensagens...", {
-          description: "Acompanhe o progresso abaixo"
-        });
-      } else {
-        throw new Error(data?.error || 'Falha no envio em massa');
-      }
     } catch (error: any) {
       console.error("❌ Erro no envio em massa:", error);
       setIsSending(false);
@@ -1599,9 +1642,19 @@ const Results = () => {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Chunk Progress */}
+                  {totalChunks > 1 && (
+                    <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-2">
+                      <span className="font-medium">Chunk</span>
+                      <Badge variant="secondary" className="font-mono">
+                        {currentChunk} / {totalChunks}
+                      </Badge>
+                    </div>
+                  )}
+                  
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Progresso</span>
+                      <span>Progresso Total</span>
                       <span className="font-medium">
                         {campaignProgress.sent + campaignProgress.failed} / {campaignProgress.total}
                       </span>
