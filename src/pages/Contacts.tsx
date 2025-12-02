@@ -34,7 +34,7 @@ import {
   FileSpreadsheet,
   Send,
   CheckSquare,
-  Shuffle,
+  ListOrdered,
   ChevronDown,
   Loader2
 } from "lucide-react";
@@ -104,6 +104,30 @@ const Contacts = () => {
   const [availableCount, setAvailableCount] = useState(0);
   const [loadingContacted, setLoadingContacted] = useState(false);
 
+  // Função para verificar se o nome começa com letra A-Z
+  const startsWithLetter = (name: string | null): boolean => {
+    if (!name || name.trim() === '') return false;
+    const firstChar = name.trim()[0].toUpperCase();
+    return firstChar >= 'A' && firstChar <= 'Z';
+  };
+
+  // Ordenação personalizada: letras A-Z primeiro, depois símbolos/números/emojis
+  const sortContactsCustom = (contactsToSort: Contact[]): Contact[] => {
+    return [...contactsToSort].sort((a, b) => {
+      const aStartsWithLetter = startsWithLetter(a.name);
+      const bStartsWithLetter = startsWithLetter(b.name);
+      
+      // Letras primeiro
+      if (aStartsWithLetter && !bStartsWithLetter) return -1;
+      if (!aStartsWithLetter && bStartsWithLetter) return 1;
+      
+      // Ambos com letra ou ambos sem - ordenar alfabeticamente
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB, 'pt-BR');
+    });
+  };
+
   useEffect(() => {
     if (user) {
       fetchContacts();
@@ -126,7 +150,9 @@ const Contacts = () => {
 
       if (error) throw error;
 
-      setContacts(data || []);
+      // Ordenação personalizada: letras A-Z primeiro, depois símbolos/números/emojis
+      const sortedData = sortContactsCustom(data || []);
+      setContacts(sortedData);
       
       // Extract all unique tags
       const tagsSet = new Set<string>();
@@ -455,8 +481,8 @@ const Contacts = () => {
     return new Set(logs?.map(log => log.client_phone) || []);
   };
 
-  // Abrir dialog de seleção aleatória com dados atualizados
-  const openRandomDialog = async () => {
+  // Abrir dialog de seleção sequencial com dados atualizados
+  const openSequentialDialog = async () => {
     setShowRandomDialog(true);
     setLoadingContacted(true);
     
@@ -471,15 +497,15 @@ const Contacts = () => {
     setLoadingContacted(false);
   };
 
-  const selectRandom = (quantity: number) => {
+  // Seleção SEQUENCIAL (pega os primeiros N contatos disponíveis, sem embaralhar)
+  const selectSequential = (quantity: number) => {
     // Filtrar contatos que NÃO foram disparados hoje
     const availableContacts = filteredContacts.filter(
       c => !contactedToday.has(c.phone_number)
     );
     
-    // Embaralhar e selecionar
-    const shuffled = [...availableContacts].sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, Math.min(quantity, availableContacts.length));
+    // Selecionar os primeiros N contatos em sequência (SEM embaralhar)
+    const selected = availableContacts.slice(0, Math.min(quantity, availableContacts.length));
     
     setSelectedContacts(new Set(selected.map(c => c.id)));
     setShowRandomDialog(false);
@@ -488,7 +514,7 @@ const Contacts = () => {
       title: `${selected.length} contatos selecionados`,
       description: contactedToday.size > 0 
         ? `${contactedToday.size} contatos já disparados hoje foram excluídos`
-        : "Seleção aleatória realizada com sucesso"
+        : "Seleção sequencial realizada com sucesso"
     });
   };
 
@@ -833,9 +859,9 @@ const Contacts = () => {
                       <CheckSquare className="mr-2 h-4 w-4" />
                       Selecionar Página ({Math.min(itemsPerPage, filteredContacts.length - (currentPage - 1) * itemsPerPage)})
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={openRandomDialog}>
-                      <Shuffle className="mr-2 h-4 w-4" />
-                      Seleção Aleatória
+                    <DropdownMenuItem onClick={openSequentialDialog}>
+                      <ListOrdered className="mr-2 h-4 w-4" />
+                      Seleção Sequencial
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={clearSelection} disabled={selectedContacts.size === 0}>
@@ -1157,11 +1183,11 @@ const Contacts = () => {
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Shuffle className="h-5 w-5" />
-                Seleção Aleatória
+                <ListOrdered className="h-5 w-5" />
+                Seleção Sequencial
               </DialogTitle>
               <DialogDescription>
-                Seleciona contatos aleatoriamente, excluindo os que já receberam disparo hoje
+                Seleciona os próximos contatos em sequência (A-Z), excluindo os que já receberam disparo hoje
               </DialogDescription>
             </DialogHeader>
             
@@ -1222,11 +1248,11 @@ const Contacts = () => {
                 Cancelar
               </Button>
               <Button 
-                onClick={() => selectRandom(randomQuantity)}
+                onClick={() => selectSequential(randomQuantity)}
                 disabled={loadingContacted || availableCount === 0}
               >
-                <Shuffle className="mr-2 h-4 w-4" />
-                Selecionar {randomQuantity}
+                <ListOrdered className="mr-2 h-4 w-4" />
+                Selecionar Próximos {randomQuantity}
               </Button>
             </DialogFooter>
           </DialogContent>
