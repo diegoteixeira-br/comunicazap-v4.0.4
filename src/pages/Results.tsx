@@ -48,8 +48,6 @@ const Results = () => {
   const [campaignProgress, setCampaignProgress] = useState({ sent: 0, failed: 0, total: 0 });
   const [isSending, setIsSending] = useState(false);
   const [messageLogs, setMessageLogs] = useState<any[]>([]);
-  const [currentChunk, setCurrentChunk] = useState(0);
-  const [totalChunks, setTotalChunks] = useState(0);
   
   // Template states
   const [showTemplates, setShowTemplates] = useState(false);
@@ -643,18 +641,14 @@ const Results = () => {
     }
 
     const campaignName = `Envio em massa - ${new Date().toLocaleString('pt-BR')}`;
-    const CHUNK_SIZE = 12; // Deve corresponder ao backend
-    const estimatedChunks = Math.ceil(availableClients.length / CHUNK_SIZE);
 
     setIsSending(true);
     setCampaignProgress({ sent: 0, failed: 0, total: availableClients.length });
     setMessageLogs([]);
     setSendingStatus({});
-    setCurrentChunk(0);
-    setTotalChunks(estimatedChunks);
 
-    toast.info("Iniciando envio em chunks...", {
-      description: `${availableClients.length} contatos em ~${estimatedChunks} chunk(s)`
+    toast.info("Iniciando envio...", {
+      description: `${availableClients.length} contatos serão processados em background`
     });
 
     try {
@@ -696,68 +690,48 @@ const Results = () => {
         }
       }
 
-      // ============= LOOP DE CHUNKS =============
-      let chunkIndex = 0;
-      let hasMore = true;
-      let campaignId: string | null = null;
-
-      while (hasMore) {
-        setCurrentChunk(chunkIndex + 1);
-        
-        console.log(`🚀 Enviando chunk ${chunkIndex + 1}/${estimatedChunks}...`);
-        
-        const { data, error } = await supabase.functions.invoke('send-messages', {
-          body: {
-            clients: clientsData,
-            messageVariations: filledVariations.length > 0 ? filledVariations : undefined,
-            message: filledVariations.length > 0 ? filledVariations[0] : undefined,
-            image: chunkIndex === 0 ? imageBase64 : undefined, // Só enviar imagem no primeiro chunk
-            campaignName,
-            chunkIndex,
-            existingCampaignId: campaignId
-          }
-        });
-
-        if (error) {
-          console.error(`❌ Erro no chunk ${chunkIndex + 1}:`, error);
-          throw error;
+      // ============= ENVIO FIRE-AND-FORGET =============
+      console.log(`🚀 Enviando ${clientsData.length} contatos para processamento...`);
+      
+      const { data, error } = await supabase.functions.invoke('send-messages', {
+        body: {
+          clients: clientsData,
+          messageVariations: filledVariations.length > 0 ? filledVariations : undefined,
+          message: filledVariations.length > 0 ? filledVariations[0] : undefined,
+          image: imageBase64 || undefined,
+          campaignName,
         }
+      });
 
-        if (!data?.success) {
-          throw new Error(data?.error || `Falha no chunk ${chunkIndex + 1}`);
-        }
-
-        // Atualizar estado com resultado do chunk
-        campaignId = data.campaignId;
-        setActiveCampaignId(campaignId);
-        
-        // Atualizar progresso
-        setCampaignProgress({
-          sent: data.progress.sent,
-          failed: data.progress.failed,
-          total: data.progress.total
-        });
-
-        console.log(`✅ Chunk ${chunkIndex + 1} completo: ${data.chunkSuccess} enviados, ${data.chunkFailed} falhas`);
-        console.log(`📊 Total: ${data.progress.sent}/${data.progress.total} enviados`);
-
-        hasMore = data.hasMore;
-        
-        if (hasMore) {
-          chunkIndex++;
-          // Pequena pausa entre chunks (2s) para não sobrecarregar
-          toast.info(`Chunk ${chunkIndex}/${estimatedChunks} concluído`, {
-            description: `Aguardando próximo chunk...`
-          });
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+      if (error) {
+        console.error(`❌ Erro ao iniciar campanha:`, error);
+        throw error;
       }
 
-      // Campanha finalizada!
-      setIsSending(false);
-      toast.success("Envio concluído!", {
-        description: `${campaignProgress.sent} enviadas, ${campaignProgress.failed} falharam`
+      if (!data?.success) {
+        throw new Error(data?.error || 'Falha ao iniciar campanha');
+      }
+
+      // Campanha iniciada com sucesso!
+      setActiveCampaignId(data.campaignId);
+      setCampaignProgress({
+        sent: 0,
+        failed: 0,
+        total: data.contactsQueued
       });
+
+      console.log(`✅ Campanha ${data.campaignId} iniciada!`);
+      console.log(`📊 ${data.contactsQueued} contatos em fila, ${data.blockedContacts} bloqueados`);
+
+      setIsSending(false);
+      toast.success("Campanha iniciada!", {
+        description: `${data.contactsQueued} mensagens sendo enviadas pelo n8n em background. Acompanhe no Histórico.`
+      });
+
+      // Redirecionar para histórico após 2 segundos
+      setTimeout(() => {
+        navigate('/history');
+      }, 2000);
 
     } catch (error: any) {
       console.error("❌ Erro no envio em massa:", error);
@@ -1643,71 +1617,21 @@ const Results = () => {
                 <CardHeader>
                   <CardTitle className="text-lg flex items-center gap-2">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primary"></div>
-                    Enviando Mensagens
+                    Iniciando Campanha
                   </CardTitle>
                   <CardDescription>
-                    Por favor, aguarde. Não feche esta página.
+                    Por favor, aguarde. Você será redirecionado para o histórico.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Chunk Progress */}
-                  {totalChunks > 1 && (
-                    <div className="flex items-center justify-between text-sm bg-muted/50 rounded-lg p-2">
-                      <span className="font-medium">Chunk</span>
-                      <Badge variant="secondary" className="font-mono">
-                        {currentChunk} / {totalChunks}
-                      </Badge>
-                    </div>
-                  )}
+                  <div className="flex items-center justify-center py-4">
+                    <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+                  </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span>Progresso Total</span>
-                      <span className="font-medium">
-                        {campaignProgress.sent + campaignProgress.failed} / {campaignProgress.total}
-                      </span>
-                    </div>
-                    <div className="w-full bg-secondary rounded-full h-3 overflow-hidden">
-                      <div 
-                        className="bg-primary h-full transition-all duration-300 rounded-full"
-                        style={{ 
-                          width: `${campaignProgress.total > 0 ? ((campaignProgress.sent + campaignProgress.failed) / campaignProgress.total) * 100 : 0}%` 
-                        }}
-                      />
-                    </div>
+                  <div className="text-center text-sm text-muted-foreground">
+                    <p>Preparando {campaignProgress.total} contatos para envio...</p>
+                    <p className="mt-1">As mensagens serão enviadas em background pelo n8n.</p>
                   </div>
-
-                  <div className="flex gap-4 text-sm">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                      <span>Enviadas: {campaignProgress.sent}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 text-destructive" />
-                      <span>Falharam: {campaignProgress.failed}</span>
-                    </div>
-                  </div>
-
-                  {messageLogs.length > 0 && (
-                    <div className="max-h-48 overflow-y-auto space-y-1 bg-muted/30 rounded-md p-3">
-                      {messageLogs.slice(-10).reverse().map((log) => (
-                        <div key={log.id} className="flex items-center gap-2 text-xs">
-                          {log.status === 'sent' && (
-                            <CheckCircle className="h-3 w-3 text-green-500 flex-shrink-0" />
-                          )}
-                          {log.status === 'failed' && (
-                            <AlertCircle className="h-3 w-3 text-destructive flex-shrink-0" />
-                          )}
-                          {log.status === 'pending' && (
-                            <div className="h-3 w-3 border-2 border-primary border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                          )}
-                          <span className="truncate">
-                            {log.client_name} - {log.client_phone}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </CardContent>
               </Card>
             )}

@@ -7,23 +7,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// ============= CONFIGURAÇÕES OTIMIZADAS PARA CHUNKS =============
-// Cada chunk deve completar em ~50s (margem de segurança do timeout de 60s)
-const CHUNK_SIZE = 12; // Mensagens por chunk
-const MIN_DELAY_BETWEEN_MESSAGES = 3000; // 3s (otimizado)
-const MAX_DELAY_BETWEEN_MESSAGES = 6000; // 6s (otimizado)
-const GAUSSIAN_MEAN = 4000; // 4s média (otimizado)
-const GAUSSIAN_STD_DEV = 1500; // 1.5s desvio
-const BATCH_SIZE = 5; // Limite WhatsApp para mesma mensagem
-const WARMUP_MESSAGES = 5; // Warm-up apenas nos primeiros 5 do primeiro chunk
-const MAX_CONSECUTIVE_ERRORS = 3;
-const REQUEST_TIMEOUT = 25000; // 25s (reduzido para caber no chunk)
-const BASE_TYPING_SPEED = 200;
-const MIN_TYPING_DELAY = 1500; // 1.5s mínimo
-const MAX_TYPING_DELAY = 8000; // 8s máximo (reduzido)
-
-// Funções auxiliares
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+// Configurações
+const BATCH_SIZE = 5; // Máximo de contatos por variação de mensagem
 
 // Escapar texto para ser seguro em JSON dentro do n8n
 const escapeTextForJson = (text: string): string => {
@@ -34,34 +19,6 @@ const escapeTextForJson = (text: string): string => {
     .replace(/\r/g, '\\r')
     .replace(/\t/g, '\\t')
     .replace(/"/g, '\\"');
-};
-
-const getRandomDelay = (min: number, max: number) => {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-
-// Distribuição Gaussiana para delays mais naturais
-const gaussianRandom = (mean: number, stdDev: number): number => {
-  const u1 = Math.random();
-  const u2 = Math.random();
-  const z = Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
-  const result = Math.round(mean + z * stdDev);
-  return Math.max(MIN_DELAY_BETWEEN_MESSAGES, Math.min(MAX_DELAY_BETWEEN_MESSAGES, result));
-};
-
-// Calcular delay de digitação baseado no tamanho da mensagem
-const calculateTypingDelay = (message: string): number => {
-  const charCount = message.length;
-  const calculatedDelay = (charCount / BASE_TYPING_SPEED) * 60 * 1000;
-  return Math.min(Math.max(calculatedDelay, MIN_TYPING_DELAY), MAX_TYPING_DELAY);
-};
-
-// Multiplicador de warm-up APENAS para primeiro chunk
-const getWarmupMultiplier = (messageIndex: number, isFirstChunk: boolean): number => {
-  if (!isFirstChunk) return 1.0; // Sem warm-up em chunks subsequentes
-  if (messageIndex < 2) return 2.0; // 2x mais lento
-  if (messageIndex < WARMUP_MESSAGES) return 1.5; // 1.5x mais lento
-  return 1.0;
 };
 
 // Verificar status da conexão do WhatsApp
@@ -90,58 +47,6 @@ async function checkConnectionStatus(instanceName: string, apiKey: string): Prom
   }
 }
 
-// Sistema de retry com backoff
-async function sendWithRetry(
-  n8nWebhookUrl: string,
-  payload: any,
-  maxRetries: number = 2
-): Promise<{ success: boolean; error?: string; response?: Response }> {
-  for (let attempt = 1; attempt <= maxRetries; attempt++) {
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-      
-      const startTime = Date.now();
-      const response = await fetch(n8nWebhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json; charset=utf-8' },
-        body: JSON.stringify(payload),
-        signal: controller.signal
-      });
-      
-      clearTimeout(timeoutId);
-      const responseTime = Date.now() - startTime;
-      
-      if (response.ok) {
-        console.log(`✅ Sucesso em ${responseTime}ms`);
-        return { success: true, response };
-      }
-      
-      if (![500, 502, 503].includes(response.status)) {
-        return { success: false, error: `HTTP ${response.status}` };
-      }
-      
-      console.warn(`⚠️ Tentativa ${attempt}/${maxRetries} falhou (HTTP ${response.status})`);
-      
-    } catch (error: any) {
-      console.warn(`⚠️ Tentativa ${attempt}/${maxRetries} falhou:`, error.message);
-      
-      if (attempt === maxRetries) {
-        return { success: false, error: error.message };
-      }
-    }
-    
-    // Backoff: 3s, 6s
-    if (attempt < maxRetries) {
-      const backoffDelay = 3000 * attempt;
-      console.log(`⏳ Retry em ${backoffDelay/1000}s...`);
-      await sleep(backoffDelay);
-    }
-  }
-  
-  return { success: false, error: 'Max retries exceeded' };
-}
-
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -161,7 +66,7 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    // Input validation schema - ATUALIZADO COM CHUNK PARAMS
+    // Input validation schema
     const clientSchema = z.object({
       "Nome do Cliente": z.string().trim().min(1).max(100),
       "Telefone do Cliente": z.string().regex(/^\+?[1-9]\d{1,14}$|^[0-9]+@g\.us$/)
@@ -174,9 +79,6 @@ serve(async (req) => {
       messageVariations: z.array(z.string().trim().max(1000)).optional().nullable(),
       image: z.string().optional().nullable(),
       campaignName: z.string().trim().max(100).optional().nullable(),
-      // NOVOS PARÂMETROS PARA CHUNKS
-      chunkIndex: z.number().int().min(0).optional().default(0),
-      existingCampaignId: z.string().uuid().optional().nullable()
     });
 
     const validatedData = requestSchema.parse(await req.json());
@@ -187,16 +89,13 @@ serve(async (req) => {
       messageVariations, 
       image, 
       campaignName,
-      chunkIndex,
-      existingCampaignId
     } = validatedData;
     
     let clients = providedClients || [];
-    const isFirstChunk = chunkIndex === 0;
     
     // Buscar contatos por tags se necessário
     if (targetTags && targetTags.length > 0) {
-      console.log('Fetching contacts by tags:', targetTags);
+      console.log('🏷️ Buscando contatos por tags:', targetTags);
       
       const { data: contactsFromDb, error: contactsError } = await supabaseClient
         .from('contacts')
@@ -212,7 +111,7 @@ serve(async (req) => {
         "Telefone do Cliente": contact.phone_number
       }));
       
-      console.log(`Found ${clients.length} contacts with tags`);
+      console.log(`📊 Encontrados ${clients.length} contatos com tags`);
     }
     
     if (!clients || clients.length === 0) {
@@ -231,20 +130,11 @@ serve(async (req) => {
       throw new Error('Either message or image is required');
     }
 
-    // VALIDAÇÃO OBRIGATÓRIA: 1 variação = máximo 5 contatos (sem repetição)
+    // VALIDAÇÃO: 1 variação = máximo 5 contatos
     const requiredVariations = Math.ceil(clients.length / BATCH_SIZE);
     if (variations.length > 0 && variations.length < requiredVariations) {
       throw new Error(`Insufficient variations: ${variations.length} provided, ${requiredVariations} required for ${clients.length} contacts (max 5 contacts per variation)`);
     }
-
-    // Calcular slice do chunk
-    const startIndex = chunkIndex * CHUNK_SIZE;
-    const endIndex = Math.min(startIndex + CHUNK_SIZE, clients.length);
-    const clientsToProcess = clients.slice(startIndex, endIndex);
-    const hasMore = endIndex < clients.length;
-
-    console.log(`\n🚀 CHUNK ${chunkIndex + 1}: Processando ${clientsToProcess.length} de ${clients.length} contatos`);
-    console.log(`📊 Índices: ${startIndex} até ${endIndex - 1} | hasMore: ${hasMore}`);
 
     // Buscar instância WhatsApp
     const { data: instance, error: instanceError } = await supabaseClient
@@ -261,53 +151,29 @@ serve(async (req) => {
       throw new Error('WhatsApp is not connected. Please scan the QR code first.');
     }
 
-    // Verificar conexão no início
-    if (isFirstChunk) {
-      const isConnected = await checkConnectionStatus(instance.instance_name, instance.api_key);
-      if (!isConnected) {
-        throw new Error('WhatsApp disconnected. Please reconnect.');
-      }
+    // Verificar conexão
+    const isConnected = await checkConnectionStatus(instance.instance_name, instance.api_key);
+    if (!isConnected) {
+      throw new Error('WhatsApp disconnected. Please reconnect.');
     }
 
-    // Criar ou reutilizar campanha
-    let campaign: any;
-    
-    if (existingCampaignId && !isFirstChunk) {
-      // Reutilizar campanha existente
-      const { data: existingCampaign, error: fetchError } = await supabaseClient
-        .from('message_campaigns')
-        .select('*')
-        .eq('id', existingCampaignId)
-        .eq('user_id', user.id)
-        .single();
-      
-      if (fetchError || !existingCampaign) {
-        throw new Error('Campaign not found');
-      }
-      
-      campaign = existingCampaign;
-      console.log(`📋 Usando campanha existente: ${campaign.id}`);
-    } else {
-      // Criar nova campanha (primeiro chunk)
-      const { data: newCampaign, error: campaignError } = await supabaseClient
-        .from('message_campaigns')
-        .insert({
-          user_id: user.id,
-          instance_id: instance.id,
-          campaign_name: campaignName || `Campaign ${new Date().toISOString()}`,
-          total_contacts: clients.length,
-          message_variations: variations,
-          target_tags: targetTags || [],
-          status: 'in_progress'
-        })
-        .select()
-        .single();
+    // Criar campanha
+    const { data: campaign, error: campaignError } = await supabaseClient
+      .from('message_campaigns')
+      .insert({
+        user_id: user.id,
+        instance_id: instance.id,
+        campaign_name: campaignName || `Campaign ${new Date().toISOString()}`,
+        total_contacts: clients.length,
+        message_variations: variations,
+        target_tags: targetTags || [],
+        status: 'in_progress'
+      })
+      .select()
+      .single();
 
-      if (campaignError) throw campaignError;
-      
-      campaign = newCampaign;
-      console.log(`📋 Nova campanha criada: ${campaign.id}`);
-    }
+    if (campaignError) throw campaignError;
+    console.log(`📋 Campanha criada: ${campaign.id}`);
 
     const n8nWebhookUrl = Deno.env.get('N8N_WEBHOOK_URL');
     if (!n8nWebhookUrl) {
@@ -318,13 +184,13 @@ serve(async (req) => {
       throw new Error('Instance API key missing');
     }
 
-    // Upload de mídia apenas no primeiro chunk
+    // Upload de mídia se houver
     let mediaUrl: string | null = null;
     let mediaType: string | null = null;
     
-    if (image && isFirstChunk) {
+    if (image) {
       try {
-        console.log('Uploading media...');
+        console.log('📤 Fazendo upload de mídia...');
         
         const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
         if (!matches || matches.length !== 3) {
@@ -359,216 +225,154 @@ serve(async (req) => {
           .getPublicUrl(fileName);
         
         mediaUrl = publicUrl;
-        console.log('Media uploaded:', mediaUrl);
+        console.log('✅ Mídia uploaded:', mediaUrl);
         
       } catch (uploadError: any) {
-        console.error('Media upload failed:', uploadError);
-        // Continuar sem mídia se falhar
+        console.error('❌ Falha no upload de mídia:', uploadError);
       }
     }
 
-    // ============= PROCESSAMENTO SÍNCRONO DO CHUNK =============
-    let successCount = 0;
-    let failedCount = 0;
-    let consecutiveErrors = 0;
-    let messagesInCurrentBatch = 0;
-
-    for (let i = 0; i < clientsToProcess.length; i++) {
-      const client = clientsToProcess[i];
-      const globalIndex = startIndex + i; // Índice global para variações
+    // ============= PREPARAR CONTATOS PARA N8N =============
+    console.log(`\n🚀 Preparando ${clients.length} contatos para envio via n8n...`);
+    
+    const contactsToSend: any[] = [];
+    
+    for (let i = 0; i < clients.length; i++) {
+      const client = clients[i];
       
-      try {
-        // Verificar status do contato
-        const { data: contact } = await supabaseClient
-          .from('contacts')
-          .select('status')
-          .eq('user_id', user.id)
-          .eq('phone_number', client["Telefone do Cliente"])
-          .maybeSingle();
+      // Verificar opt-out
+      const { data: contact } = await supabaseClient
+        .from('contacts')
+        .select('status')
+        .eq('user_id', user.id)
+        .eq('phone_number', client["Telefone do Cliente"])
+        .maybeSingle();
 
-        if (contact?.status === 'unsubscribed') {
-          console.log(`⛔ ${client["Nome do Cliente"]} optou por sair, pulando...`);
-          
-          await supabaseClient
-            .from('message_logs')
-            .insert({
-              campaign_id: campaign.id,
-              client_name: client["Nome do Cliente"],
-              client_phone: client["Telefone do Cliente"],
-              message: '[Bloqueado - Opt-out]',
-              status: 'blocked'
-            });
-
-          continue;
-        }
+      if (contact?.status === 'unsubscribed') {
+        console.log(`⛔ ${client["Nome do Cliente"]} optou por sair, pulando...`);
         
-        // Adicionar contato se não existir
-        if (!contact && !targetTags) {
-          await supabaseClient
-            .from('contacts')
-            .insert({
-              user_id: user.id,
-              phone_number: client["Telefone do Cliente"],
-              name: client["Nome do Cliente"],
-              status: 'active'
-            })
-            .select()
-            .single();
-        }
-
-        // Selecionar variação por bloco de 5 (limite WhatsApp)
-        const blockIndex = Math.floor(globalIndex / BATCH_SIZE);
-        const variationIndex = variations.length > 0 ? blockIndex % variations.length : 0;
-        const selectedMessage = variations[variationIndex] || '';
-        const personalizedMessage = selectedMessage.replace(/{nome}/g, client["Nome do Cliente"]);
-        
-        // Criar log
-        const { data: log } = await supabaseClient
+        await supabaseClient
           .from('message_logs')
           .insert({
             campaign_id: campaign.id,
             client_name: client["Nome do Cliente"],
             client_phone: client["Telefone do Cliente"],
-            message: personalizedMessage || (mediaUrl ? `[Mídia]` : ''),
-            message_variation_index: variationIndex,
-            status: 'pending'
+            message: '[Bloqueado - Opt-out]',
+            status: 'blocked'
+          });
+
+        continue;
+      }
+      
+      // Adicionar contato se não existir
+      if (!contact && !targetTags) {
+        await supabaseClient
+          .from('contacts')
+          .insert({
+            user_id: user.id,
+            phone_number: client["Telefone do Cliente"],
+            name: client["Nome do Cliente"],
+            status: 'active'
           })
           .select()
           .single();
-
-        const typingDelay = personalizedMessage?.trim() 
-          ? calculateTypingDelay(personalizedMessage)
-          : MIN_TYPING_DELAY;
-
-        const safeText = escapeTextForJson(personalizedMessage);
-
-        const payload: any = {
-          instanceName: instance.instance_name,
-          api_key: instance.api_key,
-          number: client["Telefone do Cliente"],
-          options: {
-            delay: typingDelay,
-            presence: "composing"
-          }
-        };
-
-        if (safeText?.trim()) {
-          payload.text = safeText;
-        }
-
-        if (mediaUrl) {
-          payload.mediaUrl = mediaUrl;
-          payload.mediaType = mediaType;
-        }
-
-        console.log(`📤 [${globalIndex + 1}/${clients.length}] Enviando para ${client["Nome do Cliente"]}...`);
-        
-        const sendResult = await sendWithRetry(n8nWebhookUrl, payload);
-
-        if (sendResult.success) {
-          await supabaseClient
-            .from('message_logs')
-            .update({ 
-              status: 'sent',
-              sent_at: new Date().toISOString()
-            })
-            .eq('id', log.id);
-
-          await supabaseClient.rpc('increment_sent_count', { 
-            campaign_id: campaign.id 
-          });
-
-          successCount++;
-          consecutiveErrors = 0;
-          messagesInCurrentBatch++;
-          console.log(`✅ Enviado! Progresso chunk: ${successCount}/${clientsToProcess.length}`);
-        } else {
-          throw new Error(sendResult.error || 'Send failed');
-        }
-
-      } catch (error: any) {
-        console.error(`❌ Falha: ${client["Nome do Cliente"]} - ${error.message}`);
-        
-        await supabaseClient
-          .from('message_logs')
-          .update({ 
-            status: 'failed',
-            error_message: error.message
-          })
-          .eq('campaign_id', campaign.id)
-          .eq('client_phone', client["Telefone do Cliente"]);
-
-        await supabaseClient.rpc('increment_failed_count', { 
-          campaign_id: campaign.id 
-        });
-
-        failedCount++;
-        consecutiveErrors++;
-        
-        // Se muitos erros consecutivos, parar chunk
-        if (consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
-          console.log(`🚨 ${MAX_CONSECUTIVE_ERRORS} erros consecutivos! Parando chunk...`);
-          break;
-        }
       }
 
-      // Delay entre mensagens (exceto última)
-      if (i < clientsToProcess.length - 1) {
-        const warmupMultiplier = getWarmupMultiplier(i, isFirstChunk);
-        const baseDelay = gaussianRandom(GAUSSIAN_MEAN, GAUSSIAN_STD_DEV);
-        const finalDelay = Math.round(baseDelay * warmupMultiplier);
-        
-        if (warmupMultiplier > 1.0) {
-          console.log(`🐢 Warm-up: ${finalDelay/1000}s (${warmupMultiplier}x)`);
-        } else {
-          console.log(`⏱️ Delay: ${finalDelay/1000}s`);
-        }
-        
-        await sleep(finalDelay);
-      }
-    }
-
-    // Se não há mais mensagens, finalizar campanha
-    if (!hasMore) {
-      await supabaseClient
-        .from('message_campaigns')
-        .update({ 
-          status: 'completed',
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', campaign.id);
+      // Selecionar variação por bloco de 5
+      const blockIndex = Math.floor(i / BATCH_SIZE);
+      const variationIndex = variations.length > 0 ? blockIndex % variations.length : 0;
+      const selectedMessage = variations[variationIndex] || '';
+      const personalizedMessage = selectedMessage.replace(/{nome}/g, client["Nome do Cliente"]);
       
-      console.log(`\n🎉 Campanha finalizada!`);
+      // Criar log pendente
+      const { data: log } = await supabaseClient
+        .from('message_logs')
+        .insert({
+          campaign_id: campaign.id,
+          client_name: client["Nome do Cliente"],
+          client_phone: client["Telefone do Cliente"],
+          message: personalizedMessage || (mediaUrl ? `[Mídia]` : ''),
+          message_variation_index: variationIndex,
+          status: 'pending'
+        })
+        .select()
+        .single();
+
+      const safeText = escapeTextForJson(personalizedMessage);
+
+      contactsToSend.push({
+        number: client["Telefone do Cliente"],
+        name: client["Nome do Cliente"],
+        text: safeText,
+        log_id: log?.id
+      });
     }
 
-    // Buscar totais atualizados
-    const { data: updatedCampaign } = await supabaseClient
-      .from('message_campaigns')
-      .select('sent_count, failed_count')
-      .eq('id', campaign.id)
-      .single();
+    console.log(`📋 ${contactsToSend.length} contatos prontos para envio (${clients.length - contactsToSend.length} bloqueados)`);
 
-    console.log(`\n📊 Chunk ${chunkIndex + 1} completo: ${successCount} enviados, ${failedCount} falhas`);
-    console.log(`📊 Total campanha: ${updatedCampaign?.sent_count || 0} enviados, ${updatedCampaign?.failed_count || 0} falhas`);
+    // ============= ENVIAR TUDO PARA N8N (FIRE-AND-FORGET) =============
+    const payload = {
+      instanceName: instance.instance_name,
+      api_key: instance.api_key,
+      campaign_id: campaign.id,
+      mediaUrl: mediaUrl,
+      mediaType: mediaType,
+      contacts: contactsToSend
+    };
 
-    // Retornar resultado do chunk
+    console.log(`🔥 Enviando payload para n8n com ${contactsToSend.length} contatos...`);
+
+    // Fire-and-forget: não esperar resposta
+    const sendToN8n = async () => {
+      try {
+        const response = await fetch(n8nWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify(payload),
+        });
+        
+        if (response.ok) {
+          console.log(`✅ Payload enviado com sucesso para n8n!`);
+        } else {
+          console.error(`❌ Erro ao enviar para n8n: HTTP ${response.status}`);
+          // Marcar campanha como falha
+          await supabaseClient
+            .from('message_campaigns')
+            .update({ status: 'failed' })
+            .eq('id', campaign.id);
+        }
+      } catch (error: any) {
+        console.error(`❌ Erro ao conectar com n8n:`, error.message);
+        await supabaseClient
+          .from('message_campaigns')
+          .update({ status: 'failed' })
+          .eq('id', campaign.id);
+      }
+    };
+
+    // Usar waitUntil para processar em background
+    // @ts-ignore - EdgeRuntime.waitUntil exists in Supabase Edge Functions
+    if (typeof EdgeRuntime !== 'undefined' && EdgeRuntime.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(sendToN8n());
+    } else {
+      // Fallback: fire-and-forget sem await
+      sendToN8n();
+    }
+
+    // ============= RESPONDER IMEDIATAMENTE =============
+    console.log(`\n🎉 Resposta imediata enviada ao cliente!`);
+    console.log(`📊 Campanha ${campaign.id}: ${contactsToSend.length} contatos em processamento pelo n8n`);
+
     return new Response(
       JSON.stringify({ 
         success: true,
         campaignId: campaign.id,
-        chunkIndex,
-        processed: successCount + failedCount,
-        chunkSuccess: successCount,
-        chunkFailed: failedCount,
         totalContacts: clients.length,
-        currentIndex: endIndex,
-        hasMore,
-        progress: {
-          sent: updatedCampaign?.sent_count || 0,
-          failed: updatedCampaign?.failed_count || 0,
-          total: clients.length
-        },
-        nextChunkIndex: hasMore ? chunkIndex + 1 : null
+        contactsQueued: contactsToSend.length,
+        blockedContacts: clients.length - contactsToSend.length,
+        message: 'Campaign started! Messages are being sent by n8n in the background.',
+        status: 'processing'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' } }
     );
