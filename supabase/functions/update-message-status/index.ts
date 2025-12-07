@@ -12,15 +12,34 @@ serve(async (req) => {
   }
 
   try {
+    // ============= SECURITY: Validate webhook secret =============
+    const webhookSecret = Deno.env.get('N8N_WEBHOOK_SECRET');
+    if (!webhookSecret) {
+      console.error('N8N_WEBHOOK_SECRET not configured');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Server configuration error' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const body = await req.json();
+    const { log_id, status, campaign_id, error_message, secret } = body;
+
+    // Validate secret token
+    if (secret !== webhookSecret) {
+      console.error('Invalid webhook secret provided');
+      return new Response(
+        JSON.stringify({ success: false, error: 'Unauthorized' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[CALLBACK] Recebido: log_id=${log_id}, status=${status}, campaign_id=${campaign_id}`);
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
-
-    const body = await req.json();
-    const { log_id, status, campaign_id, error_message } = body;
-
-    console.log(`[CALLBACK] Recebido: log_id=${log_id}, status=${status}, campaign_id=${campaign_id}`);
 
     if (!log_id || !status || !campaign_id) {
       throw new Error('Missing required fields: log_id, status, campaign_id');
