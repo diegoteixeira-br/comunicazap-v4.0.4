@@ -152,7 +152,7 @@ const Index = () => {
               <MessageCircle className="h-8 w-8 text-primary" />
             </div>
             <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Disparo em Massa via WhatsApp
+              Transforme seu WhatsApp em uma Máquina de Vendas e Fidelização
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
               Transforme seu WhatsApp em uma Máquina de Vendas. Importe contatos, gerencie aniversariantes e faça
