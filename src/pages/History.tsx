@@ -11,18 +11,29 @@ import { ArrowLeft, Loader2, Pause, Play, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const History = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [campaignToCancel, setCampaignToCancel] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchCampaigns();
 
-      // Escutar mudanças em tempo real
       const channel = supabase
         .channel('campaigns-realtime')
         .on(
@@ -64,13 +75,18 @@ const History = () => {
     const { error } = await supabase
       .from('message_campaigns')
       .update({ status: newStatus })
-      .eq('id', campaignId);
+      .eq('id', campaignId)
+      .eq('user_id', user?.id);
 
     if (error) {
       toast.error('Erro ao atualizar campanha');
       console.error('Error updating campaign:', error);
       return;
     }
+
+    setCampaigns(prev => prev.map(c => 
+      c.id === campaignId ? { ...c, status: newStatus } : c
+    ));
 
     const messages: Record<string, string> = {
       paused: 'Campanha pausada',
@@ -79,6 +95,19 @@ const History = () => {
     };
 
     toast.success(messages[newStatus] || 'Status atualizado');
+  };
+
+  const handleCancelClick = (campaignId: string) => {
+    setCampaignToCancel(campaignId);
+    setCancelDialogOpen(true);
+  };
+
+  const confirmCancel = async () => {
+    if (campaignToCancel) {
+      await updateCampaignStatus(campaignToCancel, 'cancelled');
+    }
+    setCancelDialogOpen(false);
+    setCampaignToCancel(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -137,7 +166,7 @@ const History = () => {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={() => updateCampaignStatus(campaign.id, 'cancelled')}
+            onClick={() => handleCancelClick(campaign.id)}
             title="Cancelar"
           >
             <X className="h-4 w-4 text-destructive" />
@@ -162,7 +191,7 @@ const History = () => {
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={() => updateCampaignStatus(campaign.id, 'cancelled')}
+            onClick={() => handleCancelClick(campaign.id)}
             title="Cancelar"
           >
             <X className="h-4 w-4 text-destructive" />
@@ -175,82 +204,104 @@ const History = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10 p-3 sm:p-4">
-      <div className="max-w-6xl mx-auto">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/dashboard')}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          <span className="hidden sm:inline">Voltar ao Dashboard</span>
-          <span className="sm:hidden">Voltar</span>
-        </Button>
+    <>
+      <AlertDialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancelar Campanha</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja cancelar esta campanha? Esta ação não pode ser desfeita e as mensagens pendentes não serão enviadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Voltar</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmCancel} 
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Cancelar Campanha
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Histórico de Campanhas</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin" />
-              </div>
-            ) : campaigns.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                Nenhuma campanha encontrada
-              </div>
-            ) : (
-              <div className="overflow-x-auto -mx-6 sm:mx-0">
-                <div className="inline-block min-w-full align-middle px-6 sm:px-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs sm:text-sm">Campanha</TableHead>
-                        <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Data</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Total</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Enviados</TableHead>
-                        <TableHead className="text-xs sm:text-sm hidden md:table-cell">Falhas</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Status</TableHead>
-                        <TableHead className="text-xs sm:text-sm">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {campaigns.map((campaign) => (
-                        <TableRow key={campaign.id}>
-                          <TableCell className="font-medium text-xs sm:text-sm max-w-[150px] truncate">
-                            {campaign.campaign_name}
-                          </TableCell>
-                          <TableCell className="text-xs sm:text-sm hidden sm:table-cell whitespace-nowrap">
-                            {format(new Date(campaign.created_at), 'dd/MM/yy HH:mm', {
-                              locale: ptBR,
-                            })}
-                          </TableCell>
-                          <TableCell className="text-xs sm:text-sm">{campaign.total_contacts}</TableCell>
-                          <TableCell className="text-xs sm:text-sm">
-                            <span className="text-green-600 font-medium">{campaign.sent_count}</span>
-                            {campaign.status === 'in_progress' && (
-                              <div className="mt-1">
-                                <Progress value={getProgress(campaign)} className="h-1.5 w-16" />
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-red-600 text-xs sm:text-sm hidden md:table-cell">
-                            {campaign.failed_count}
-                          </TableCell>
-                          <TableCell className="text-xs sm:text-sm">{getStatusBadge(campaign.status)}</TableCell>
-                          <TableCell className="text-xs sm:text-sm">{renderActions(campaign)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 to-secondary/10 p-3 sm:p-4">
+        <div className="max-w-6xl mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => navigate('/dashboard')}
+            className="mb-4"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Voltar ao Dashboard</span>
+            <span className="sm:hidden">Voltar</span>
+          </Button>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Histórico de Campanhas</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <div className="flex justify-center items-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin" />
                 </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              ) : campaigns.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  Nenhuma campanha encontrada
+                </div>
+              ) : (
+                <div className="overflow-x-auto -mx-6 sm:mx-0">
+                  <div className="inline-block min-w-full align-middle px-6 sm:px-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs sm:text-sm">Campanha</TableHead>
+                          <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Data</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Total</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Enviados</TableHead>
+                          <TableHead className="text-xs sm:text-sm hidden md:table-cell">Falhas</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Status</TableHead>
+                          <TableHead className="text-xs sm:text-sm">Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {campaigns.map((campaign) => (
+                          <TableRow key={campaign.id}>
+                            <TableCell className="font-medium text-xs sm:text-sm max-w-[150px] truncate">
+                              {campaign.campaign_name}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm hidden sm:table-cell whitespace-nowrap">
+                              {format(new Date(campaign.created_at), 'dd/MM/yy HH:mm', {
+                                locale: ptBR,
+                              })}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">{campaign.total_contacts}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">
+                              <span className="text-green-600 font-medium">{campaign.sent_count}</span>
+                              {campaign.status === 'in_progress' && (
+                                <div className="mt-1">
+                                  <Progress value={getProgress(campaign)} className="h-1.5 w-16" />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="text-red-600 text-xs sm:text-sm hidden md:table-cell">
+                              {campaign.failed_count}
+                            </TableCell>
+                            <TableCell className="text-xs sm:text-sm">{getStatusBadge(campaign.status)}</TableCell>
+                            <TableCell className="text-xs sm:text-sm">{renderActions(campaign)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
