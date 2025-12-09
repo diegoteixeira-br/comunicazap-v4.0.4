@@ -151,7 +151,7 @@ const Index = () => {
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
               <MessageCircle className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent pb-2">
               Transforme seu WhatsApp em uma Máquina de Vendas e Fidelização
             </h1>
             <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
