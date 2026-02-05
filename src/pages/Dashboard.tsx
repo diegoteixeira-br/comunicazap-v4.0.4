@@ -514,7 +514,7 @@ const Dashboard = () => {
                         Complete seu cadastro
                       </h3>
                       <p className="text-sm text-amber-700 dark:text-amber-300">
-                        Informe seu CPF ou CNPJ para continuar usando a plataforma.
+                        Para garantir a segurança e evitar a criação de contas duplicadas, precisamos que você informe seu CPF ou CNPJ.
                       </p>
                     </div>
                   </div>
