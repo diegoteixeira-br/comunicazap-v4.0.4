@@ -11,9 +11,12 @@ import { Eye, EyeOff, ArrowLeft, Info, Shield } from 'lucide-react';
 import { ForceLightTheme } from '@/components/ForceLightTheme';
 import { formatDocument, validateDocument, cleanDocument } from '@/lib/document';
 
+const REFERRAL_CODE_KEY = 'comunicazap_referral_code';
+
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const mode = searchParams.get('mode');
+  const refCode = searchParams.get('ref');
   const [isLogin, setIsLogin] = useState(mode !== 'signup');
   const [forgotPasswordMode, setForgotPasswordMode] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
@@ -30,6 +33,14 @@ const Auth = () => {
   const { user } = useAuth();
   const { executeRecaptcha, isLoaded: recaptchaLoaded } = useRecaptcha();
   const isResetMode = mode === 'reset';
+
+  // Capture referral code from URL and store in localStorage
+  useEffect(() => {
+    if (refCode) {
+      localStorage.setItem(REFERRAL_CODE_KEY, refCode);
+      console.log('[REFERRAL] Captured referral code:', refCode);
+    }
+  }, [refCode]);
 
   useEffect(() => {
     if (user && !isResetMode) {
@@ -125,7 +136,10 @@ const Auth = () => {
           return;
         }
 
-        const { error } = await supabase.auth.signUp({
+        // Get referral code from localStorage if exists
+        const storedReferralCode = localStorage.getItem(REFERRAL_CODE_KEY);
+
+        const { data: signUpData, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -133,11 +147,32 @@ const Auth = () => {
             data: {
               full_name: fullName,
               document: cleanDoc,
+              referred_by_code: storedReferralCode || undefined,
             },
           },
         });
 
         if (error) throw error;
+
+        // If signup successful and we have a referral code, create the referral record
+        if (signUpData.user && storedReferralCode) {
+          console.log('[REFERRAL] Creating referral for user:', signUpData.user.id);
+          const { data: referralCreated, error: referralError } = await supabase.rpc(
+            'create_referral_on_signup',
+            { 
+              p_referral_code: storedReferralCode, 
+              p_referred_user_id: signUpData.user.id 
+            }
+          );
+          
+          if (referralError) {
+            console.error('[REFERRAL] Error creating referral:', referralError);
+          } else {
+            console.log('[REFERRAL] Referral created:', referralCreated);
+            // Clear the referral code from localStorage after successful use
+            localStorage.removeItem(REFERRAL_CODE_KEY);
+          }
+        }
 
         toast({
           title: "Cadastro realizado!",

@@ -19,6 +19,7 @@ import NotFound from "./pages/NotFound";
 import TermsOfService from "./pages/TermsOfService";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import RefundPolicy from "./pages/RefundPolicy";
+import Referral from "./pages/Referral";
 
 import AdminSupport from "./pages/AdminSupport";
 import AdminAuditLog from "./pages/AdminAuditLog";
@@ -50,6 +51,7 @@ const App = () => (
           <Route path="/terms" element={<TermsOfService />} />
           <Route path="/privacy" element={<PrivacyPolicy />} />
           <Route path="/refund-policy" element={<RefundPolicy />} />
+          <Route path="/referral" element={<ProtectedRoute><Referral /></ProtectedRoute>} />
           
           <Route path="/admin/support" element={<ProtectedRoute><AdminSupport /></ProtectedRoute>} />
           <Route path="/admin/audit-log" element={<ProtectedRoute><AdminAuditLog /></ProtectedRoute>} />
